@@ -168,7 +168,14 @@ The tool scans your VPX file and automatically detects:
 
 ### Main Interface
 ![Main Interface](screenshots/Screenshot%2001.jpg)
+
+![Main Interface](screenshots/Screenshot%2002.jpg)
+
+![Main Interface](screenshots/Screenshot%2003.jpg)
+
 *Clean, intuitive interface with drag-and-drop support*
+
+
 
 ### Operation Summary
 ![Summary](screenshots/summary.png)
