@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VPX Standalone Merging Tool - by Major Frenchy</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%);
+            color: #ffffff;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 60px 20px 40px;
+            background: linear-gradient(135deg, #00ff00 0%, #00ccff 100%);
+            border-radius: 20px;
+            margin-bottom: 40px;
+            box-shadow: 0 10px 40px rgba(0, 255, 0, 0.3);
+        }
+
+        h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            color: #1e1e1e;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .tagline {
+            font-size: 1.3em;
+            color: #1e1e1e;
+            font-weight: 600;
+        }
+
+        .version {
+            display: inline-block;
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-top: 15px;
+            font-size: 1.1em;
+        }
+
+        .hero-section {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 40px;
+            border-radius: 15px;
+            margin-bottom: 40px;
+            border: 2px solid rgba(0, 255, 0, 0.3);
+        }
+
+        .hero-section h2 {
+            color: #00ff00;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+
+        .hero-section p {
+            font-size: 1.2em;
+            line-height: 1.8;
+            color: #cccccc;
+        }
+
+        .download-section {
+            text-align: center;
+            padding: 40px;
+            background: linear-gradient(135deg, #ff9900 0%, #ffaa33 100%);
+            border-radius: 15px;
+            margin-bottom: 40px;
+            box-shadow: 0 10px 40px rgba(255, 153, 0, 0.3);
+        }
+
+        .download-btn {
+            display: inline-block;
+            background: #1e1e1e;
+            color: #ff9900;
+            padding: 20px 50px;
+            font-size: 1.5em;
+            font-weight: bold;
+            text-decoration: none;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            margin-top: 20px;
+        }
+
+        .download-btn:hover {
+            background: #2a2a2a;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 30px;
+            border-radius: 15px;
+            border: 2px solid rgba(0, 204, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(0, 204, 255, 0.6);
+            box-shadow: 0 10px 30px rgba(0, 204, 255, 0.2);
+        }
+
+        .feature-card h3 {
+            color: #00ccff;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .feature-card ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .feature-card li {
+            padding: 8px 0;
+            padding-left: 25px;
+            position: relative;
+            color: #cccccc;
+        }
+
+        .feature-card li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #00ff00;
+            font-weight: bold;
+        }
+
+        .screenshot-section {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 40px;
+            border-radius: 15px;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        .screenshot-section h2 {
+            color: #00ff00;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        .screenshot-placeholder {
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            padding: 60px;
+            color: #888888;
+            font-size: 1.2em;
+        }
+
+        .installation {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 40px;
+            border-radius: 15px;
+            margin-bottom: 40px;
+            border: 2px solid rgba(255, 204, 0, 0.3);
+        }
+
+        .installation h2 {
+            color: #ffcc00;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+
+        .installation ol {
+            font-size: 1.1em;
+            line-height: 2;
+            color: #cccccc;
+            padding-left: 25px;
+        }
+
+        .installation code {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 3px 8px;
+            border-radius: 5px;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+        }
+
+        .requirements {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 40px;
+            border-radius: 15px;
+            margin-bottom: 40px;
+        }
+
+        .requirements h2 {
+            color: #00ccff;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+
+        .requirements ul {
+            list-style: none;
+            padding-left: 0;
+            font-size: 1.1em;
+        }
+
+        .requirements li {
+            padding: 10px 0;
+            padding-left: 30px;
+            position: relative;
+            color: #cccccc;
+        }
+
+        .requirements li:before {
+            content: "►";
+            position: absolute;
+            left: 0;
+            color: #00ccff;
+        }
+
+        footer {
+            text-align: center;
+            padding: 40px 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            margin-top: 40px;
+        }
+
+        footer p {
+            color: #888888;
+            font-size: 0.9em;
+        }
+
+        .credits {
+            color: #00ff00;
+            font-size: 1.1em;
+            margin-top: 10px;
+        }
+
+        .github-link {
+            color: #00ccff;
+            text-decoration: none;
+            font-weight: bold;
+            transition: color 0.3s ease;
+        }
+
+        .github-link:hover {
+            color: #33ddff;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2em;
+            }
+
+            .tagline {
+                font-size: 1.1em;
+            }
+
+            .features {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎮 VPX Standalone Merging Tool</h1>
+            <p class="tagline">The Ultimate Virtual Pinball Table Management Utility</p>
+            <span class="version">v1.0</span>
+        </header>
+
+        <div class="hero-section">
+            <h2>What is it?</h2>
+            <p>
+                The VPX Standalone Merging Tool is a powerful desktop application designed for Virtual Pinball enthusiasts. 
+                It automates the tedious process of organizing and merging all the components needed for a complete VPX table setup. 
+                Simply drag and drop your .vpx files, and let the tool handle the rest!
+            </p>
+        </div>
+
+        <div class="download-section">
+            <h2 style="color: #1e1e1e; margin-bottom: 10px;">Ready to Download?</h2>
+            <p style="color: #1e1e1e; margin-bottom: 20px;">Standalone .exe coming soon! Python script available now.</p>
+            <a href="https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/releases" class="download-btn">📥 Download v1.0 (Python Script)</a>
+            <p style="color: #1e1e1e; margin-top: 20px; font-size: 0.9em;">
+                <a href="https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/releases" class="github-link" style="color: #1e1e1e;">
+                    View all releases on GitHub →
+                </a>
+            </p>
+        </div>
+
+        <div class="features">
+            <div class="feature-card">
+                <h3>🔍 Automatic Detection</h3>
+                <ul>
+                    <li>ROM files (.zip)</li>
+                    <li>DirectB2S backglasses</li>
+                    <li>UltraDMD/FlexDMD packs</li>
+                    <li>AltSound packages</li>
+                    <li>AltColor packages</li>
+                    <li>PuP-Packs</li>
+                    <li>Music files (MP3/OGG)</li>
+                    <li>GitHub patches</li>
+                </ul>
+            </div>
+
+            <div class="feature-card">
+                <h3>⚡ Powerful Features</h3>
+                <ul>
+                    <li>Drag-and-drop interface</li>
+                    <li>Real-time progress tracking</li>
+                    <li>GitHub patch integration</li>
+                    <li>Clean VBS extraction</li>
+                    <li>Comprehensive file summary</li>
+                    <li>Smart fuzzy matching</li>
+                    <li>Multi-table batch processing</li>
+                </ul>
+            </div>
+
+            <div class="feature-card">
+                <h3>🎯 Three Operation Modes</h3>
+                <ul>
+                    <li><strong>Make Magic Happen:</strong> Full merge with all components</li>
+                    <li><strong>Create Clean VBS:</strong> Extract VBS scripts from VPX</li>
+                    <li><strong>Patch Only:</strong> Download GitHub patches only</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="screenshot-section">
+            <h2>Screenshots</h2>
+            <div class="screenshot-placeholder">
+                Screenshots coming soon!<br>
+                (Add your screenshots here)
+            </div>
+        </div>
+
+        <div class="installation">
+            <h2>📦 Installation</h2>
+            
+            <h3 style="color: #00ff00; margin-top: 30px; margin-bottom: 15px;">Option 1: Standalone Executable (Coming Soon)</h3>
+            <p style="color: #cccccc; margin-bottom: 20px;">
+                A standalone .exe for Windows is currently in development. No Python installation will be required!
+            </p>
+            
+            <h3 style="color: #00ff00; margin-top: 30px; margin-bottom: 15px;">Option 2: Run with Python (Current Method)</h3>
+            
+            <h4 style="color: #00ccff; margin-top: 25px; margin-bottom: 10px;">🪟 Windows Installation</h4>
+            <ol style="margin-bottom: 30px;">
+                <li>
+                    <strong>Install Python 3.8 or higher</strong><br>
+                    Download from <a href="https://www.python.org/downloads/" class="github-link">python.org</a><br>
+                    ⚠️ <strong>Important:</strong> Check "Add Python to PATH" during installation
+                </li>
+                <li>
+                    <strong>Install required packages</strong><br>
+                    Open Command Prompt and run:
+                    <pre style="background: rgba(0,0,0,0.5); padding: 15px; border-radius: 5px; margin-top: 10px; overflow-x: auto;"><code>pip install tkinterdnd2 olefile</code></pre>
+                </li>
+                <li>
+                    <strong>Download the script</strong><br>
+                    Download <code>VPXmerge.py</code> from the <a href="https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/releases" class="github-link">Releases page</a>
+                </li>
+                <li>
+                    <strong>Run the application</strong><br>
+                    Double-click <code>VPXmerge.py</code> or run from Command Prompt:
+                    <pre style="background: rgba(0,0,0,0.5); padding: 15px; border-radius: 5px; margin-top: 10px; overflow-x: auto;"><code>python VPXmerge.py</code></pre>
+                </li>
+            </ol>
+
+            <h4 style="color: #00ccff; margin-top: 25px; margin-bottom: 10px;">🍎 macOS Installation</h4>
+            <ol style="margin-bottom: 30px;">
+                <li>
+                    <strong>Install Python 3.8 or higher</strong><br>
+                    Download from <a href="https://www.python.org/downloads/" class="github-link">python.org</a><br>
+                    Or use Homebrew: <code>brew install python3</code>
+                </li>
+                <li>
+                    <strong>Install Tkinter (if not already installed)</strong><br>
+                    Open Terminal and run:
+                    <pre style="background: rgba(0,0,0,0.5); padding: 15px; border-radius: 5px; margin-top: 10px; overflow-x: auto;"><code>brew install python-tk@3.12</code></pre>
+                    <em style="color: #888888; font-size: 0.9em;">Note: Adjust version number to match your Python version</em>
+                </li>
+                <li>
+                    <strong>Install required packages</strong><br>
+                    In Terminal, run:
+                    <pre style="background: rgba(0,0,0,0.5); padding: 15px; border-radius: 5px; margin-top: 10px; overflow-x: auto;"><code>pip3 install tkinterdnd2 olefile</code></pre>
+                </li>
+                <li>
+                    <strong>Download the script</strong><br>
+                    Download <code>VPXmerge.py</code> from the <a href="https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/releases" class="github-link">Releases page</a>
+                </li>
+                <li>
+                    <strong>Run the application</strong><br>
+                    In Terminal, navigate to the download folder and run:
+                    <pre style="background: rgba(0,0,0,0.5); padding: 15px; border-radius: 5px; margin-top: 10px; overflow-x: auto;"><code>python3 VPXmerge.py</code></pre>
+                </li>
+            </ol>
+
+            <h4 style="color: #ffcc00; margin-top: 25px; margin-bottom: 10px;">⚠️ Troubleshooting</h4>
+            <ul style="list-style: none; padding-left: 0;">
+                <li style="padding: 10px 0; padding-left: 30px; position: relative; color: #cccccc;">
+                    <span style="position: absolute; left: 0; color: #ffcc00;">▸</span>
+                    <strong>tkinter not found:</strong> Reinstall Python with Tkinter support enabled
+                </li>
+                <li style="padding: 10px 0; padding-left: 30px; position: relative; color: #cccccc;">
+                    <span style="position: absolute; left: 0; color: #ffcc00;">▸</span>
+                    <strong>Permission denied (Mac):</strong> Run <code>chmod +x VPXmerge.py</code> first
+                </li>
+                <li style="padding: 10px 0; padding-left: 30px; position: relative; color: #cccccc;">
+                    <span style="position: absolute; left: 0; color: #ffcc00;">▸</span>
+                    <strong>Drag-and-drop not working:</strong> Ensure tkinterdnd2 is properly installed
+                </li>
+            </ul>
+        </div>
+
+        <div class="requirements">
+            <h2>💻 System Requirements</h2>
+            
+            <h3 style="color: #00ff00; margin-top: 20px; margin-bottom: 15px;">For Standalone .exe (Coming Soon)</h3>
+            <ul style="margin-bottom: 30px;">
+                <li>Windows 10 or later</li>
+                <li>No Python installation required</li>
+                <li>Internet connection (for GitHub patch downloads)</li>
+                <li>Sufficient disk space for merged tables</li>
+            </ul>
+
+            <h3 style="color: #00ff00; margin-top: 20px; margin-bottom: 15px;">For Python Script (Current)</h3>
+            <ul>
+                <li>Windows 10+ or macOS 10.14+</li>
+                <li>Python 3.8 or higher</li>
+                <li>Required Python packages:
+                    <ul style="margin-left: 30px; margin-top: 10px;">
+                        <li style="list-style: disc; color: #aaaaaa;"><code>tkinter</code> (usually included with Python)</li>
+                        <li style="list-style: disc; color: #aaaaaa;"><code>tkinterdnd2</code> - for drag-and-drop functionality</li>
+                        <li style="list-style: disc; color: #aaaaaa;"><code>olefile</code> - for reading VPX files</li>
+                    </ul>
+                </li>
+                <li>Internet connection (for GitHub patch downloads)</li>
+                <li>Sufficient disk space for merged tables</li>
+            </ul>
+        </div>
+
+        <footer>
+            <p class="credits">Coded by <strong>Major Frenchy</strong> with the help of <strong>Claude.ai</strong></p>
+            <p style="margin-top: 20px;">
+                <a href="https://github.com/MajorFrenchy" class="github-link">GitHub Profile</a> | 
+                <a href="https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool" class="github-link">Source Code</a> | 
+                <a href="https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/issues" class="github-link">Report Issues</a>
+            </p>
+            <p style="margin-top: 30px; font-size: 0.8em;">
+                © 2025 Major Frenchy. Open Source Project.
+            </p>
+        </footer>
+    </div>
+</body>
+</html>
