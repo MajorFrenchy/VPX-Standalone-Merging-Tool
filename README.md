@@ -167,8 +167,8 @@ The tool scans your VPX file and automatically detects:
 ## 🎨 Screenshots
 
 ### Main Interface
-[![Main Interface](screenshots/main-interface.png)
-*Clean, intuitive interface with drag-and-drop support*](https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/blob/main/screenshots/Screenshot%2001.jpg)
+![Main Interface](screenshots/Screenshot%2001.jpg)
+*Clean, intuitive interface with drag-and-drop support*
 
 ### Operation Summary
 ![Summary](screenshots/summary.png)
