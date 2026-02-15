@@ -245,7 +245,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 Special thanks to:
 - [jsm174](https://github.com/jsm174) for the VPX standalone scripts repository and VPX Standalone 
-- The Virtual Pinball community
+- SuperHack for his coding tips/help and his Media Database leveraged by this project. https://github.com/superhac
 - All contributors and testers
 
 ---
