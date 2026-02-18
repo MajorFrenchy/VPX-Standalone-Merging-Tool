@@ -93,7 +93,7 @@ python3 VPXmerge.py
 
 | Button | Function |
 |--------|----------|
-| 🎯 **MAKE MAGIC HAPPEN** | Full export: VPX + VBS + backglass + PUP + media + patches |
+| 🎯 **MAKE MAGIC HAPPEN** | Full export: VPX + backglass + PUP + media + patches |
 | 📝 **EXTRACT VBS ONLY** | Save embedded scripts without copying tables |
 | 🔧 **FIX SCRIPT** | Auto-patch VPX scripts and save fixed version |
 | 🗑️ **CLEAR** | Reset and start over |
