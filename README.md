@@ -18,13 +18,17 @@ VPXmerge streamlines your VPX table collection by automating exports, script fix
 
 ---
 Screenshots
-<img src="https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/raw/main/screenshots/Screenshot%2001.jpg" width="50%" alt="VPXmerge Interface">
+<p align="center">
+  <img src="https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/raw/main/screenshots/Screenshot%2001.jpg" width="50%" alt="VPXmerge Interface">
+</p>
 <br>
-<img src="https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/raw/main/screenshots/Screenshot%2002.jpg" width="50%" alt="VPXmerge Interface">
+<p align="center">
+  <img src="https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/raw/main/screenshots/Screenshot%2002.jpg" width="50%" alt="VPXmerge Interface">
+</p>
 <br>
-<img src="https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/raw/main/screenshots/Screenshot%2003.jpg" width="50%" alt="VPXmerge Interface">
-
----
+<p align="center">
+  <img src="https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/raw/main/screenshots/Screenshot%2003.jpg" width="50%" alt="VPXmerge Interface">
+</p>
 
 ## 🚀 Installation
 
