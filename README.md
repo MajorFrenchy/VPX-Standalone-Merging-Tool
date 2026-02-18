@@ -1,268 +1,318 @@
-# 🎮 VPX Standalone Merging Tool
+# VPX Standalone Merging Tool
 
-![Version](https://img.shields.io/badge/version-1.0-brightgreen)
-![Platform](https://img.shields.io/badge/platform-Windows-blue)
-![License](https://img.shields.io/badge/license-MIT-orange)
+**The all-in-one utility for organizing, fixing, and preparing Visual Pinball X tables for standalone play.**
 
-**The Ultimate Virtual Pinball Table Management Utility**
-
-Automate the tedious process of organizing and merging all components needed for a complete VPX table setup. Simply drag and drop your `.vpx` files, and let the tool handle the rest!
+VPXmerge streamlines your VPX table collection by automating exports, script fixes, media organization, and asset detection — all with an intuitive drag-and-drop interface.
 
 ---
 
-## ✨ Features
+## ✨ Features at a Glance
 
-### 🔍 Automatic Detection & Merging
-- **ROM Files** - Automatically finds and copies `.zip` ROM files
-- **DirectB2S Backglasses** - Detects and includes backglass files
-- **UltraDMD/FlexDMD** - Smart detection of DMD packages
-- **AltSound Packages** - Includes alternative sound packs
-- **AltColor Packages** - Detects colorization files
-- **PuP-Packs** - Automatically finds Pinup Player video packs
-- **Music Files** - Scans and copies MP3/OGG music tracks
-- **GitHub Patches** - Downloads standalone scripts from jsm174's repository
-
-### ⚡ Powerful Interface
-- 🖱️ **Drag-and-Drop** - Simple file handling
-- 📊 **Real-time Progress** - Live progress bar and status updates
-- 🎨 **Visual Separators** - Clean, organized audit log
-- 🎲 **Random Quotes** - Fun pinball-themed messages
-- 📈 **File Summary** - Complete breakdown of processed files
-
-### 🎯 Three Operation Modes
-
-1. **Make The Magic Happen** - Full merge with all components
-2. **Create Clean VBS** - Extract VBS scripts from VPX files
-3. **Patch Only** - Download GitHub patches without copying files
+- 🎯 **One-Click Full Export** — VPX + VBS + Backglass + PUP + Media
+- 🔧 **Auto-Fix Scripts** — WScript.Shell, RegRead, deprecated B2S properties
+- 🎬 **Smart Media Manager** — Fuzzy matching for POPMedia files
+- 🖼️ **Live Table Previews** — See table artwork while you work
+- 📦 **Batch Processing** — Handle entire collections at once
+- 🎮 **ROM Detection** — 3-tier fallback for maximum compatibility
+- 📝 **VBS Extraction** — Pull scripts from VPX files safely
 
 ---
 
-## 📥 Installation
+## 🚀 Installation
 
-### Option 1: Standalone Executable (Coming Soon!)
-A standalone `.exe` for Windows is currently in development. No Python installation will be required!
+### Prerequisites
 
-### Option 2: Run from Python (Current Method)
+- **Python 3.8 or higher** ([Download Python](https://www.python.org/downloads/))
+- **Windows, macOS, or Linux**
 
-#### 🪟 **Windows**
+### Step 1: Install Python Dependencies
 
-1. **Install Python 3.8 or higher**
-   - Download from [python.org](https://www.python.org/downloads/)
-   - ⚠️ **Important**: Check "Add Python to PATH" during installation
+Open Terminal (macOS/Linux) or Command Prompt (Windows) and run:
 
-2. **Install required packages**
-   ```bash
-   pip install tkinterdnd2 olefile
-   ```
-
-3. **Download and run**
-   ```bash
-   # Download VPXmerge.py from releases
-   python VPXmerge.py
-   ```
-
-#### 🍎 **macOS**
-
-1. **Install Python 3.8 or higher**
-   - Download from [python.org](https://www.python.org/downloads/)
-   - Or use Homebrew: `brew install python3`
-
-2. **Install Tkinter** (if not already included)
-   ```bash
-   brew install python-tk@3.12
-   ```
-   *Note: Adjust version to match your Python installation*
-
-3. **Install required packages**
-   ```bash
-   pip3 install tkinterdnd2 olefile
-   ```
-
-4. **Download and run**
-   ```bash
-   # Download VPXmerge.py from releases
-   python3 VPXmerge.py
-   ```
-
-#### ⚠️ **Troubleshooting**
-
-- **tkinter not found**: Reinstall Python with Tkinter support enabled
-- **Permission denied (Mac)**: Run `chmod +x VPXmerge.py` first
-- **Drag-and-drop not working**: Ensure `tkinterdnd2` is properly installed
-
-### Option 3: Clone from Source
 ```bash
-# Clone the repository
+# Windows
+pip install Pillow olefile tkinterdnd2 --break-system-packages
+
+# macOS/Linux  
+pip3 install Pillow olefile tkinterdnd2 --break-system-packages
+```
+
+**Required Packages:**
+- `Pillow` — Image processing for table previews
+- `olefile` — VPX file parsing (OLE format)
+- `tkinterdnd2` — Drag & drop support
+
+**Note:** `tkinter` is included with Python by default. If missing:
+- **Ubuntu/Debian:** `sudo apt-get install python3-tk`
+- **macOS:** Included with official Python installer
+- **Windows:** Included with Python installer
+
+### Step 2: Download VPXmerge
+
+**Option A: Clone Repository**
+```bash
 git clone https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool.git
 cd VPX-Standalone-Merging-Tool
+```
 
-# Install dependencies
-pip install tkinterdnd2 olefile
+**Option B: Download ZIP**
+1. Click the green **Code** button above
+2. Select **Download ZIP**
+3. Extract to your preferred location
 
-# Run the application
+### Step 3: (Optional) Add Logo & Database
+
+Place these files in the same directory as `VPXmerge.py`:
+
+- **`mf_logo.png`** — Branding logo (28×28px recommended)
+- **`pinballxdatabase.csv`** — Enhanced preview database ([VPS Database](https://virtualpinballspreadsheet.github.io/vps-db/))
+- **`custom_mappings.txt`** — Manual table→image mappings
+
+### Step 4: Launch
+
+```bash
+# Windows
 python VPXmerge.py
+
+# macOS/Linux
+python3 VPXmerge.py
 ```
 
 ---
 
-## 📦 Dependencies
+## ⚡ Quick Start
 
-### Required Python Packages
-- **tkinter** - GUI framework (usually included with Python)
-- **tkinterdnd2** - Drag-and-drop support for Tkinter
-- **olefile** - Reading and parsing OLE files (VPX files)
+1. **Launch VPXmerge** → Run `python VPXmerge.py`
+2. **Set Export Target** → Click **Browse** to choose output folder
+3. **Add Tables** → Drag VPX files or folders into the drop zone
+4. **Preview** → See table images and detected assets
+5. **Enable Options:**
+   - ☑️ **Enable Patch Lookup** (GitHub script fixes)
+   - ☑️ **Include Media Files** (POPMedia scanning)
+6. **Click** 🎯 **MAKE MAGIC HAPPEN**
 
-### Standard Library
-- `os`, `shutil`, `json`, `threading`, `subprocess`, `re`, `random`, `urllib`
+### Action Buttons
 
-Install all dependencies:
+| Button | Function |
+|--------|----------|
+| 🎯 **MAKE MAGIC HAPPEN** | Full export: VPX + VBS + backglass + PUP + media + patches |
+| 📝 **EXTRACT VBS ONLY** | Save embedded scripts without copying tables |
+| 🔧 **FIX SCRIPT** | Auto-patch VPX scripts and save fixed version |
+| 🗑️ **CLEAR** | Reset and start over |
+
+---
+
+## 🎯 Key Features
+
+### 📦 Smart Table Export
+
+**Automated Organization:**
+```
+Target/TableName/
+├── TableName.vpx              # Original table
+├── TableName.vbs              # Extracted script
+├── TableName.directb2s        # Backglass (if found)
+├── PUPVideos/                 # PinUP Player videos
+└── medias/                    # Organized media files
+    ├── table.mp4
+    ├── fulldmd.mp4
+    ├── wheel.png
+    ├── bg.mp4
+    ├── flyer.png
+    └── media_log.ini
+```
+
+---
+
+### 🔧 Auto-Fix Script Issues
+
+**One-Click Fixes:**
+
+✅ **WScript.Shell Removal** (any variable name: `wsh`, `WshShell`, etc.)
+```vbscript
+' Before
+Set wsh = CreateObject("WScript.Shell")
+
+' After  
+' Set wsh = CreateObject("WScript.Shell") ' REMOVED
+```
+
+✅ **GetNVramPath() → Local Paths**
+```vbscript
+Function GetNVramPath()
+    GetNVramPath = ".\pinmame\nvram\"
+End Function
+```
+
+✅ **RegRead Stubbing**
+```vbscript
+' nvramPath = wsh.RegRead(...) ' REMOVED
+nvramPath = ".\pinmame\nvram\" ' Auto-fixed
+```
+
+✅ **Deprecated B2S Properties**
+```vbscript
+' .ShowDMDOnly = 1 ' REMOVED - deprecated
+' .ShowFrame = 0   ' REMOVED - deprecated  
+```
+
+✅ **Problematic COM Objects** (SAPI.SpVoice, WMPlayer.OCX)
+
+---
+
+### 🎬 Intelligent Media Manager
+
+**POPMedia Scanning with Fuzzy Name Matching:**
+
+| POPMedia Folder | Renamed To | Formats |
+|----------------|------------|---------|
+| Playfield | `table.mp4` | .mp4, .avi, .f4v |
+| Menu | `fulldmd.mp4` | .mp4, .avi, .f4v |
+| Loading | `loading.mp4` | .mp4, .avi, .f4v |
+| Gameinfo | `flyer.png` | .png, .jpg |
+| GameHelp | `rules.png` | .png, .jpg |
+| Backglass | `bg.mp4` | .mp4, .avi, .f4v |
+| AudioLaunch | `audiolaunch.mp3` | .mp3, .wav |
+| Audio | `audio.mp3` | .mp3, .wav |
+| Wheel | `wheel.png` | .png, .apng, .jpg |
+
+**Fuzzy Matching Examples:**
+
+| Your VPX File | POPMedia Filename | Match? |
+|---------------|-------------------|--------|
+| `Godzilla limited edition` | `Godzilla (Sega 1998) VPW v1.1.mp4` | ✅ 100% |
+| `Bugs Bunny_s Birthday Ball` | `Bugs Bunny's Birthday Ball.png` | ✅ 100% |
+| `Star Trek LE (Stern 2013)` | `Star Trek (Stern 2013).mp4` | ✅ 100% |
+
+**How It Works:**
+- Strips manufacturer, year, version (`VPW`, `MOD`, `v1.1`)
+- Normalizes apostrophes, underscores (`_s` → `s`)
+- Removes noise words (`limited`, `edition`, `le`, `pro`)
+- ≥50% keyword overlap = match
+- Skips tables with existing `medias/` folder
+
+---
+
+### 🎮 ROM & Asset Detection
+
+**3-Tier ROM Detection:**
+1. Primary: `cGameName`, `GameName`, `RomName`
+2. Fallback: Explicit `cGameName =` search
+3. Fallback: `OptRom =` pattern
+
+**Also Detects:**
+- ✅ Backglass (.directb2s files)
+- ✅ DMD (UltraDMD, FlexDMD)
+- ✅ PUP Packs (PinUP Player videos)
+
+---
+
+### 🖼️ Live Table Previews
+
+- Adaptive grid (1–6 tables)
+- VPinMAME database (5,300+ images)
+- Fuzzy image matching
+- CSV database support
+
+**Custom Mappings:**
+```ini
+# custom_mappings.txt
+Star Trek LE (Stern 2013) = stle_150
+Gilligan's Island = gilligans_island
+```
+
+---
+
+## 📖 Usage Examples
+
+### Basic Export
+
 ```bash
-pip install tkinterdnd2 olefile
+python VPXmerge.py
+# 1. Browse → Select target folder
+# 2. Drag VPX files
+# 3. Enable "Include Media Files"
+# 4. Click MAKE MAGIC HAPPEN
 ```
 
----
-
-## 🚀 Quick Start Guide
-
-### 1. Configure Source Folders
-Set up your source directories where the tool will look for components:
-- **TABLES** - Your VPX tables and related files folder
-- **VPINMAME** - VPinMAME folder containing ROMs, AltSound, AltColor
-- **PUPVIDEOS** - Pinup Player video packs folder
-- **MUSIC** - Music folder with MP3/OGG files
-
-### 2. Set Export Target
-Choose where you want the merged standalone tables to be created.
-
-### 3. Enable Patch Lookup (Optional)
-Check the "Enable Patch Lookup (GitHub)" option to automatically download standalone scripts from [jsm174's repository](https://github.com/jsm174/vpx-standalone-scripts).
-
-### 4. Process Your Tables
-- Drag and drop one or more `.vpx` files into the black audit window
-- Review the detected components
-- Click your desired operation mode:
-  - **MAKE THE MAGIC HAPPEN** - Full merge
-  - **CREATE CLEAN .VBS** - VBS extraction only
-  - **PATCH ONLY** - GitHub patch download only
-
----
-
-## 📋 What Gets Detected?
-
-The tool scans your VPX file and automatically detects:
-
-| Item | Detection Method | Location |
-|------|-----------------|----------|
-| **ROM** | `cGameName` in script | `/vpinmame/roms/` |
-| **Backglass** | `[TableName].directb2s` | `/tables/` |
-| **UltraDMD/FlexDMD** | `UseUltraDMD/UseFlexDMD = 1` | `/tables/[name].DMD/` |
-| **AltSound** | ROM name match | `/vpinmame/altsound/` |
-| **AltColor** | ROM name match | `/vpinmame/altcolor/` |
-| **PuP-Pack** | ROM or table name | `/pupvideos/` |
-| **Music** | `PlayMusic` references | `/music/` |
-| **Patch** | GitHub fuzzy search | jsm174 repository |
-
----
-
-## 🎨 Screenshots
-
-### Main Interface
-![Main Interface](screenshots/Screenshot%2001.jpg)
-
-![Main Interface](screenshots/Screenshot%2002.jpg)
-
-![Main Interface](screenshots/Screenshot%2003.jpg)
-
-*Clean, intuitive interface with drag-and-drop support*
-
-
-
-### Operation Summary
-![Summary](screenshots/summary.png)
-*Detailed breakdown of all processed files*
-
----
-
-## 🛠️ Building from Source
-
-### Create Standalone Executable
+### Extract Scripts Only
 
 ```bash
-# Install PyInstaller
-pip install pyinstaller
-
-# Build the executable
-pyinstaller --onefile --windowed \
-    --name "VPX_Merging_Tool_v1.0" \
-    --add-data "tkdnd;tkdnd" \
-    --hidden-import=tkinterdnd2 \
-    --hidden-import=olefile \
-    VPXmerge.py
+# For script analysis/backup
+# Click "EXTRACT VBS ONLY" instead
 ```
 
-The executable will be in the `dist/` folder.
+### Fix Problematic Table
+
+```bash
+# Drag single VPX
+# Click "FIX SCRIPT"
+# Fixed .vbs saved alongside VPX
+```
 
 ---
 
-## 📖 Version History
+## 🐛 Troubleshooting
 
-### v1.0 (Initial Release)
-- ✅ Automatic detection of 9 component types
-- ✅ ROM, Backglass, UltraDMD/FlexDMD support
-- ✅ AltSound, AltColor, PuP-Pack detection
-- ✅ Music file scanning and copying
-- ✅ GitHub patch lookup and download
-- ✅ Progress bar with real-time updates
-- ✅ Visual separators and enhanced UI
-- ✅ Button hover effects
-- ✅ File count summary
-- ✅ Random pinball quotes
-- ✅ Three operation modes (Full, VBS Only, Patch Only)
-- ✅ Drag-and-drop interface
-- ✅ VBS extraction with proper formatting
-- ✅ Smart fuzzy matching for patches
+### "Module not found: tkinter"
+```bash
+# Ubuntu/Debian
+sudo apt-get install python3-tk
+
+# macOS (reinstall Python from python.org)
+# Windows (reinstall with "tcl/tk and IDLE" checked)
+```
+
+### "Module not found: PIL"
+```bash
+pip install Pillow --break-system-packages
+```
+
+### "No table previews"
+- Wait for "✓ Ready" status (database loading)
+- Check internet connection (initial download)
+- Add custom mapping if needed
+
+### "Media not copying"
+- ☑️ "Include Media Files" enabled?
+- ☑️ POPMedia folder structure: `POPMedia/Visual Pinball X/`?
+- ☑️ POPMedia one directory up from PUP source?
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Feel free to:
-- Report bugs via [Issues](https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/issues)
-- Submit feature requests
-- Create pull requests
+Contributions welcome! Areas for enhancement:
+- Additional UI themes
+- More auto-fix patterns
+- Additional media sources
+- Enhanced fuzzy matching
+
+1. Fork the repository
+2. Create feature branch
+3. Commit changes
+4. Push and open PR
 
 ---
 
-## 📝 License
+## 📜 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Credits
-
-**Coded by Major Frenchy with the help of Claude.ai**
-
-Special thanks to:
-- [jsm174](https://github.com/jsm174) for the VPX standalone scripts repository and VPX Standalone 
-- SuperHack for his coding tips/help and his Media Database leveraged by this project. https://github.com/superhac
-- All contributors and testers
+MIT License - Free to use, modify, and distribute.
 
 ---
 
-## 💬 Support
+## 🙏 Acknowledgments
 
-- **Issues**: [GitHub Issues](https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/discussions)
+**Created by:** Major Frenchy  
+**Powered by:** Claude (Anthropic)
+
+**Special Thanks:**
+- VPinMAME community
+- Virtual Pinball Spreadsheet maintainers
+- PinballX database contributors
 
 ---
 
-## ⭐ Star this repo if you find it useful!
+**⚡ VPXmerge — Because your tables deserve better organization.**
 
-Made with ❤️ for the Virtual Pinball community
-
-##  Support me
-
-If you find this utility useful and would like to support its development: You can con tribute in 2 ways, Getting the VPC Chat Discord server a Boost :" https://discord.com/invite/virtual-pinball-chat-652274650524418078 
-
-or by contributing to the VPC Chat Patreon: https://www.patreon.com/c/vpchat
+*Star this repo if you find it useful!* ⭐
