@@ -17,6 +17,12 @@ VPXmerge streamlines your VPX table collection by automating exports, script fix
 - 📝 **VBS Extraction** — Pull scripts from VPX files safely
 
 ---
+Screenshots
+<img src="https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/raw/main/screenshots/Screenshot%2001.jpg" width="50%" alt="VPXmerge Interface">
+<img src="https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/raw/main/screenshots/Screenshot%2002.jpg" width="50%" alt="VPXmerge Interface">
+<img src="https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/raw/main/screenshots/Screenshot%2003.jpg" width="50%" alt="VPXmerge Interface">
+
+---
 
 ## 🚀 Installation
 
@@ -305,12 +311,21 @@ MIT License - Free to use, modify, and distribute.
 **Powered by:** Claude (Anthropic)
 
 **Special Thanks:**
-- VPinMAME community
-- Virtual Pinball Spreadsheet maintainers
-- PinballX database contributors
+- * jsm174 for the VPX standalone scripts repository and VPX Standalone
+* SuperHack for his coding tips/help and his Media Database leveraged by this project. https://github.com/superhac
+* All contributors and testers
+- Virtual Pinball Spreadsheet maintainers ( DuxRero )
+
 
 ---
 
 **⚡ VPXmerge — Because your tables deserve better organization.**
 
 *Star this repo if you find it useful!* ⭐
+
+Support me
+
+If you find this utility useful and would like to support its development: You can con tribute in 2 ways, Getting the VPC Chat Discord server a Boost :" https://discord.com/invite/virtual-pinball-chat-652274650524418078
+or by contributing to the VPC Chat Patreon: https://www.patreon.com/c/vpchat
+
+https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/raw/main/screenshots/Screenshot%2002.jpg
