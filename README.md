@@ -64,9 +64,7 @@ cd VPX-Standalone-Merging-Tool
 
 Place these files in the same directory as `VPXmerge.py`:
 
-- **`mf_logo.png`** — Branding logo (28×28px recommended)
 - **`pinballxdatabase.csv`** — Enhanced preview database ([VPS Database](https://virtualpinballspreadsheet.github.io/vps-db/))
-- **`custom_mappings.txt`** — Manual table→image mappings
 
 ### Step 4: Launch
 
