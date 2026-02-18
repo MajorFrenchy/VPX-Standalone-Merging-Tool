@@ -60,7 +60,7 @@ cd VPX-Standalone-Merging-Tool
 2. Select **Download ZIP**
 3. Extract to your preferred location
 
-### Step 3: (Optional) Add Logo & Database
+### Step 3: (Optional) Add Database
 
 Place these files in the same directory as `VPXmerge.py`:
 
