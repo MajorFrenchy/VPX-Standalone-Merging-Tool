@@ -7,18 +7,53 @@ import io
 
 VERSION = "1.0"
 
+# ── Media fuzzy matching helpers ──────────────────────────────────────────────
+_MEDIA_NOISE = {
+    'limited','edition','le','pro','premium','vr','vpw','mod','sg1','vpu',
+    'the','a','an','and','of','in','remaster','vpx','remake','ultimate',
+    'deluxe','special','anniversary','collector','classic','night','jp','fizx'
+}
+
+def _mnorm(s):
+    """Normalize a name for fuzzy media matching."""
+    s = s.lower()
+    s = re.sub(r"_s\b", "s", s)               # Bugs_Bunny_s → Bugs Bunnys
+    s = re.sub(r"['\u2019\u2018`]", "", s)     # strip apostrophes
+    s = re.sub(r"[^a-z0-9\s]", " ", s)        # non-alphanum → space
+    return re.sub(r"\s+", " ", s).strip()
+
+def _mstrip(s):
+    """Strip manufacturer, year, version, author noise."""
+    s = re.sub(r'\s*\([^)]*\d{4}[^)]*\)', '', s)          # (Stern 2013)
+    s = re.sub(r'\s*\([^)]*\)', '', s)                      # any remaining ()
+    s = re.sub(r'\s+v\d+[\d.]*\b.*$', '', s, flags=re.IGNORECASE)
+    s = re.sub(r'\s+\d+\.\d+[\d.]*\b.*$', '', s)
+    s = re.sub(r'\s+(VPW|MOD|VR|LE|SE|CE|PRO|PREM|JP|FizX)\b.*$', '', s, flags=re.IGNORECASE)
+    return s.strip()
+
+def _mkeywords(s):
+    return set(_mnorm(_mstrip(s)).split()) - _MEDIA_NOISE
+
+def _mfuzzy(a, b):
+    """Return keyword overlap score 0.0–1.0 between two table names."""
+    ka, kb = _mkeywords(a), _mkeywords(b)
+    if not ka or not kb: return 0.0
+    return len(ka & kb) / max(len(ka), len(kb))
+
 class VPXStandaloneMergingUtility:
     def __init__(self, root):
         self.root = root
         self.root.title(f"VPX UTILITY v{VERSION} - FULL RESTORATION")
-        self.root.geometry("1200x920") 
-        self.root.resizable(False, False) 
+        self.root.geometry("1400x1000")
+        self.root.minsize(1200, 900)
+        self.root.resizable(True, True) 
         self.root.configure(bg="#1e1e1e") 
         
         self.config_file = os.path.join(os.path.expanduser("~"), ".vpx_utility_config.json")
         self.sources = {"tables": tk.StringVar(), "vpinmame": tk.StringVar(), "pupvideos": tk.StringVar(), "music": tk.StringVar()}
         self.target = tk.StringVar()
-        self.enable_patch_lookup = tk.BooleanVar(value=True)  # Default: checked
+        self.enable_patch_lookup = tk.BooleanVar(value=True)
+        self.include_media = tk.BooleanVar(value=False)  # Default: checked
         
         # File tracking for summary
         self.file_stats = {
@@ -48,105 +83,289 @@ class VPXStandaloneMergingUtility:
                     if "target" in data: self.target.set(data["target"])
             except: pass
 
+    def _make_section(self, parent, label, accent):
+        """Creates a modern section with a slim colored top-border and label."""
+        outer = tk.Frame(parent, bg=accent, pady=1)
+        outer.pack(fill="x", padx=28, pady=(8, 0))
+        inner = tk.Frame(outer, bg="#1a1e2e", pady=6, padx=12)
+        inner.pack(fill="x")
+        tk.Label(inner, text=label, bg="#1a1e2e", fg=accent,
+                 font=("Courier", 14, "bold", "underline")).pack(anchor="w")
+        return inner
+
+    def _make_btn(self, parent, text, color, cmd, dim_color, height=2):
+        """Rounded-feel button with hover."""
+        btn = tk.Button(parent, text=text, bg=color, fg="#0a0d1a",
+                        font=("Courier", 16, "bold"), relief="flat",
+                        bd=0, height=height, cursor="hand2", command=cmd,
+                        activebackground=dim_color, activeforeground="#0a0d1a",
+                        disabledforeground="#555566")
+        btn.bind("<Enter>", lambda e, b=btn, c=dim_color: b.config(bg=c) if b["state"] == "normal" else None)
+        btn.bind("<Leave>", lambda e, b=btn, c=color:     b.config(bg=c) if b["state"] == "normal" else None)
+        return btn
+
     def setup_ui(self):
-        btn_opt, l_btn_opt = {"font": ("Arial", 10, "bold"), "fg": "#000000"}, {"font": ("Arial", 12, "bold"), "fg": "#000000", "height": 2}
-        tk.Label(self.root, text="VPX STANDALONE MERGING TOOL", font=("Arial", 22, "bold"), fg="#ffffff", bg="#1e1e1e").pack(pady=(15, 5))
-        src_container = tk.LabelFrame(self.root, text=" FOLDER SOURCE ", bg="#1e1e1e", fg="#00ffcc", font=("Arial", 10, "bold"))
-        src_container.pack(fill="x", padx=30, pady=5)
+        BG      = "#0a0d1a"   # deep navy black
+        PANEL   = "#111526"   # slightly lighter panel
+        BORDER  = "#1e2440"   # subtle border
+        ACCENT1 = "#00e5ff"   # cyan   — sources
+        ACCENT2 = "#ffd600"   # amber  — target
+        GREEN   = "#00e676"   # green  — found / main action
+        CYAN    = "#40c4ff"   # blue   — vbs
+        ORANGE  = "#ff9100"   # orange — patch
+        RED     = "#ff1744"   # red    — clear
+        MUTED   = "#4a5080"   # muted text
+
+        self.root.configure(bg=BG)
+
+        # ── Header ────────────────────────────────────────────────────────────
+        hdr = tk.Frame(self.root, bg=BG)
+        hdr.pack(fill="x", padx=28, pady=(18, 4))
+
+        # Canvas title with white outline + cyan fill
+        title_canvas = tk.Canvas(hdr, bg=BG, highlightthickness=0, height=62)
+        title_canvas.pack(side="left", fill="x", expand=True)
+
+        def draw_title(event=None):
+            title_canvas.delete("all")
+            cw = title_canvas.winfo_width() or 900
+            cx = cw // 2
+            txt = "VPX  STANDALONE  MERGING  TOOL"
+            fnt = ("Courier", 42, "bold")
+            # White outline — draw 8 times offset in every direction
+            for dx, dy in [(-2,-2),(2,-2),(-2,2),(2,2),(-2,0),(2,0),(0,-2),(0,2)]:
+                title_canvas.create_text(cx+dx, 31+dy, text=txt, font=fnt,
+                                         fill="#ffffff", anchor="center")
+            # Cyan fill on top
+            title_canvas.create_text(cx, 31, text=txt, font=fnt,
+                                     fill=ACCENT1, anchor="center")
+
+        title_canvas.bind("<Configure>", draw_title)
+        title_canvas.after(50, draw_title)
+
+        tk.Label(hdr, text=f"v{VERSION}", font=("Courier", 10),
+                 fg=MUTED, bg=BG).pack(side="right", anchor="n", pady=(4, 0))
+
+        # thin separator line under header
+        tk.Frame(self.root, bg=ACCENT1, height=1).pack(fill="x", padx=28, pady=(0, 6))
+
+        # ── Sources ───────────────────────────────────────────────────────────
+        src_sec = self._make_section(self.root, "◈  SOURCE FOLDERS", ACCENT1)
+        LABELS = {"tables": "TABLES", "vpinmame": "VPINMAME", "pupvideos": "PUP VIDEOS", "music": "MUSIC"}
         for key in ["tables", "vpinmame", "pupvideos", "music"]:
-            row = tk.Frame(src_container, bg="#1e1e1e"); row.pack(fill="x", padx=10, pady=2)
-            tk.Label(row, text=key.upper() + ":", bg="#1e1e1e", fg="#ffffff", font=("Menlo", 9), width=12, anchor="w").pack(side="left")
-            tk.Entry(row, textvariable=self.sources[key], bg="#2a2a2a", fg="#aaaaaa", font=("Menlo", 9)).pack(side="left", fill="x", expand=True, padx=5)
-            tk.Button(row, text="SET", command=lambda k=key: self.browse_path(k, "source"), **btn_opt).pack(side="right")
-        tgt_container = tk.LabelFrame(self.root, text=" EXPORT TARGET ", bg="#1e1e1e", fg="#ffcc00", font=("Arial", 10, "bold"))
-        tgt_container.pack(fill="x", padx=30, pady=5)
-        tk.Entry(tgt_container, textvariable=self.target, bg="#2a2a2a", fg="#ffcc00", font=("Menlo", 10)).pack(side="left", fill="x", expand=True, padx=15, pady=8)
-        tk.Button(tgt_container, text="BROWSE", command=lambda: self.browse_path(None, "target"), **btn_opt).pack(side="right", padx=10)
+            row = tk.Frame(src_sec, bg="#1a1e2e")
+            row.pack(fill="x", pady=2)
+            tk.Label(row, text=LABELS[key], bg="#1a1e2e", fg="#ffffff",
+                     font=("Courier", 11, "bold"), width=11, anchor="w").pack(side="left")
+            tk.Entry(row, textvariable=self.sources[key],
+                     bg=BORDER, fg="#ffffff", font=("Courier", 10, "bold"),
+                     relief="flat", bd=0,
+                     insertbackground=ACCENT1).pack(side="left", fill="x", expand=True, padx=(4, 6), ipady=5)
+            tk.Button(row, text="›", bg="#1e2856", fg=ACCENT1,
+                      font=("Courier", 14, "bold"), relief="flat", bd=0,
+                      width=3, cursor="hand2",
+                      command=lambda k=key: self.browse_path(k, "source"),
+                      activebackground="#2a3870", activeforeground=ACCENT1).pack(side="right")
+
+        # ── Target ────────────────────────────────────────────────────────────
+        tgt_sec = self._make_section(self.root, "◈  EXPORT TARGET", ACCENT2)
+        tgt_row = tk.Frame(tgt_sec, bg="#1a1e2e")
+        tgt_row.pack(fill="x", pady=2)
+        tk.Entry(tgt_row, textvariable=self.target,
+                 bg=BORDER, fg="#ffffff", font=("Courier", 10, "bold"),
+                 relief="flat", bd=0,
+                 insertbackground=ACCENT2).pack(side="left", fill="x", expand=True, padx=(0, 6), ipady=5)
+        tk.Button(tgt_row, text="›", bg="#2a2000", fg=ACCENT2,
+                  font=("Courier", 13, "bold"), relief="flat", bd=0,
+                  width=3, cursor="hand2",
+                  command=lambda: self.browse_path(None, "target"),
+                  activebackground="#3a3000", activeforeground=ACCENT2).pack(side="right")
+
+        # ── Options row ───────────────────────────────────────────────────────
+        opt_row = tk.Frame(self.root, bg=BG)
+        opt_row.pack(fill="x", padx=28, pady=(10, 2))
+        tk.Checkbutton(opt_row, text=" Enable Patch Lookup  (GitHub)",
+                       variable=self.enable_patch_lookup,
+                       bg=BG, fg=GREEN, selectcolor=BORDER,
+                       font=("Courier", 11, "bold"), activebackground=BG,
+                       activeforeground=GREEN, cursor="hand2").pack(side="left")
         
-        # Patch Lookup Checkbox
-        patch_frame = tk.Frame(self.root, bg="#1e1e1e")
-        patch_frame.pack(fill="x", padx=30, pady=5)
-        tk.Checkbutton(patch_frame, text="Enable Patch Lookup (GitHub)", variable=self.enable_patch_lookup, 
-                      bg="#1e1e1e", fg="#00ff00", selectcolor="#2a2a2a", 
-                      font=("Arial", 10, "bold"), activebackground="#1e1e1e", 
-                      activeforeground="#00ff00").pack(anchor="w")
-        
-        # Progress Bar
-        self.progress_frame = tk.Frame(self.root, bg="#1e1e1e")
-        self.progress_frame.pack(fill="x", padx=30, pady=5)
-        self.progress_bar = ttk.Progressbar(self.progress_frame, mode='determinate', length=840)
-        self.progress_bar.pack(fill="x")
-        self.progress_label = tk.Label(self.progress_frame, text="", bg="#1e1e1e", fg="#00ff00", font=("Arial", 9))
-        self.progress_label.pack()
-        self.progress_frame.pack_forget()  # Hide initially
-        
-        # Main container for audit and preview
-        main_container = tk.Frame(self.root, bg="#1e1e1e")
-        main_container.pack(fill="both", expand=True, padx=30, pady=10)
-        
-        # Audit frame on the left
-        self.audit_frame = tk.Frame(main_container, bg="#000000", bd=2, relief="sunken")
-        self.audit_frame.pack(side="left", fill="both", expand=True)
-        self.audit_list = tk.Text(self.audit_frame, bg="#000000", fg="#ffffff", font=("Menlo", 11), state="disabled", padx=15, pady=10, width=70)
+        tk.Checkbutton(opt_row, text=" Include Media Files",
+                       variable=self.include_media,
+                       bg=BG, fg=CYAN, selectcolor=BORDER,
+                       font=("Courier", 11, "bold"), activebackground=BG,
+                       activeforeground=CYAN, cursor="hand2").pack(side="left", padx=(20, 0))
+
+        # ── Progress Bar ──────────────────────────────────────────────────────
+        self.progress_frame = tk.Frame(self.root, bg=BG, height=1)
+        self.progress_frame.pack(fill="x", padx=28, pady=0)
+        self.progress_frame.pack_propagate(False)  # keep fixed height — prevents layout shift
+        style = ttk.Style()
+        style.theme_use("default")
+        style.configure("Neo.Horizontal.TProgressbar",
+                        troughcolor=BORDER, background=ACCENT1,
+                        borderwidth=0, thickness=6)
+        self.progress_bar = ttk.Progressbar(self.progress_frame, mode="determinate",
+                                            style="Neo.Horizontal.TProgressbar")
+        self.progress_label = tk.Label(self.progress_frame, text="", bg=BG, fg="#ffffff",
+                                       font=("Courier", 10, "bold"))
+        # bar and label hidden initially — frame stays packed to hold layout space
+
+        # ── Main area (audit log + preview) ──────────────────────────────────
+        main_container = tk.Frame(self.root, bg=BG, height=500)
+        main_container.pack(fill="both", expand=True, padx=28, pady=(8, 4))
+        main_container.pack_propagate(False)
+
+        # Audit log
+        audit_outer = tk.Frame(main_container, bg=BORDER, pady=1, padx=1)
+        audit_outer.pack(side="left", fill="both", expand=True)
+        audit_inner = tk.Frame(audit_outer, bg=PANEL)
+        audit_inner.pack(fill="both", expand=True)
+
+        # header bar for audit
+        audit_hdr = tk.Frame(audit_inner, bg="#161a2e", pady=6)
+        audit_hdr.pack(fill="x")
+        # spacer left
+        tk.Label(audit_hdr, text="", bg="#161a2e", width=8).pack(side="left")
+        tk.Label(audit_hdr, text="AUDIT LOG",
+                 bg="#161a2e", fg="#ffffff", font=("Courier", 14, "bold")).pack(side="left", expand=True)
+        tk.Button(audit_hdr, text="✕  CLEAR", command=self.clear_list,
+                  bg="#2a0010", fg=RED, font=("Courier", 11, "bold"),
+                  relief="flat", bd=0, padx=12, pady=2, cursor="hand2",
+                  activebackground="#3a0018", activeforeground=RED).pack(side="right", padx=6)
+
+        self.audit_list = tk.Text(audit_inner, bg=PANEL, fg="#c0cce8",
+                                  font=("Menlo", 13), state="disabled",
+                                  padx=14, pady=8, relief="flat", bd=0,
+                                  width=68, insertbackground=ACCENT1)
+        scrollbar = tk.Scrollbar(audit_inner, command=self.audit_list.yview,
+                                 bg=BORDER, troughcolor=PANEL,
+                                 activebackground=MUTED, relief="flat", bd=0, width=8)
+        self.audit_list.config(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side="right", fill="y")
         self.audit_list.pack(fill="both", expand=True)
-        self.audit_list.tag_configure("table_name", foreground="#00ccff", font=("Menlo", 12, "bold"))
-        self.audit_list.tag_configure("found", foreground="#00ff00")
-        self.audit_list.tag_configure("missing", foreground="#ffffff")
-        self.audit_list.tag_configure("yellow", foreground="#ffff00", font=("Menlo", 11, "bold"))
-        self.audit_list.tag_configure("white", foreground="#ffffff", font=("Menlo", 11, "bold"))
-        self.audit_list.drop_target_register(DND_FILES); self.audit_list.dnd_bind('<<Drop>>', self.handle_drop)
-        
-        # Preview panel on the right
-        self.preview_frame = tk.Frame(main_container, bg="#000000", bd=2, relief="sunken", width=300)
-        self.preview_frame.pack(side="right", fill="both", padx=(10, 0))
+
+        self.audit_list.tag_configure("table_name", foreground=ACCENT1, font=("Menlo", 15, "bold"))
+        self.audit_list.tag_configure("found",   foreground=GREEN,   font=("Menlo", 13))
+        self.audit_list.tag_configure("missing", foreground="#ffffff", font=("Menlo", 13))
+        self.audit_list.tag_configure("yellow",  foreground=ACCENT2, font=("Menlo", 13, "bold"))
+        self.audit_list.tag_configure("white",   foreground="#7080a0", font=("Menlo", 13))
+        self.audit_list.drop_target_register(DND_FILES)
+        self.audit_list.dnd_bind("<<Drop>>", self.handle_drop)
+
+        # Centered drop hint overlay — shown when log is empty
+        self.drop_hint = tk.Label(audit_inner,
+                                  text="DROP  .VPX  TABLE  HERE",
+                                  bg=PANEL, fg="#ffd600",
+                                  font=("Courier", 22, "bold"),
+                                  cursor="hand2",
+                                  highlightthickness=2,
+                                  highlightbackground="#ffffff",
+                                  padx=16, pady=10)
+        self.drop_hint.place(relx=0.5, rely=0.5, anchor="center")
+        self.drop_hint.drop_target_register(DND_FILES)
+        self.drop_hint.dnd_bind("<<Drop>>", self.handle_drop)
+
+        # Preview panel
+        prev_outer = tk.Frame(main_container, bg=BORDER, pady=1, padx=1, width=462)
+        prev_outer.pack(side="right", fill="y", padx=(10, 0))
+        prev_outer.pack_propagate(False)
+        self.preview_frame = tk.Frame(prev_outer, bg=PANEL, width=460)
+        self.preview_frame.pack(fill="both", expand=True)
         self.preview_frame.pack_propagate(False)
-        
-        # Preview title
-        tk.Label(self.preview_frame, text="TABLE PREVIEW", bg="#000000", fg="#00ccff", 
-                font=("Arial", 12, "bold")).pack(pady=(10, 5))
-        
-        # Image display
-        self.preview_canvas = tk.Canvas(self.preview_frame, bg="#1a1a1a", width=280, height=350, highlightthickness=0)
-        self.preview_canvas.pack(pady=10, padx=10)
-        
-        # Table info labels
-        self.preview_table_name = tk.Label(self.preview_frame, text="", bg="#000000", fg="#ffffff", 
-                                           font=("Arial", 10, "bold"), wraplength=280, justify="center")
-        self.preview_table_name.pack(pady=(5, 2))
-        
-        self.preview_rom_name = tk.Label(self.preview_frame, text="", bg="#000000", fg="#00ff00", 
-                                         font=("Arial", 9), wraplength=280)
-        self.preview_rom_name.pack(pady=2)
-        
-        self.preview_status = tk.Label(self.preview_frame, text="Drop a .vpx file to preview", 
-                                      bg="#000000", fg="#888888", font=("Arial", 9, "italic"), wraplength=280)
-        self.preview_status.pack(pady=(10, 5))
 
+        # ── Header row: title + back button ──────────────────────────────────
+        prev_hdr = tk.Frame(self.preview_frame, bg=PANEL)
+        prev_hdr.pack(fill="x", pady=(10, 4))
 
-        # Store current image reference
+        self.preview_title = tk.Label(prev_hdr, text="TABLE PREVIEW",
+                 bg=PANEL, fg="#ffffff", font=("Courier", 16, "bold"),
+                 wraplength=420, justify="center")
+        self.preview_title.pack(side="left", expand=True, fill="x", padx=(10, 0))
+
+        self.btn_back_preview = tk.Button(prev_hdr, text="◀ ALL",
+                 bg=PANEL, fg="#00e5ff", font=("Courier", 9, "bold"),
+                 relief="flat", bd=0, cursor="hand2",
+                 command=self._preview_back,
+                 activebackground="#1a1e2e", activeforeground="#ffffff")
+        self.btn_back_preview.pack(side="right", padx=(0, 8))
+        self.btn_back_preview.pack_forget()  # hidden until multi-file grid is active
+
+        tk.Frame(self.preview_frame, bg=BORDER, height=1).pack(fill="x", padx=10)
+
+        # ── Single big view (DEFAULT) ─────────────────────────────────────────
+        self.preview_single_frame = tk.Frame(self.preview_frame, bg=PANEL)
+        self.preview_single_frame.pack(fill="both", expand=True)
+
+        self.preview_canvas = tk.Canvas(self.preview_single_frame, bg="#0d101e",
+                                        width=440, height=490, highlightthickness=0)
+        self.preview_canvas.pack(pady=(8, 4), padx=10, fill="both", expand=True)
+
+        self.preview_table_name = tk.Label(self.preview_single_frame, text="",
+                                           bg=PANEL, fg="#ffffff",
+                                           font=("Courier", 11, "bold"),
+                                           wraplength=430, justify="center")
+        self.preview_table_name.pack(pady=(2, 1))
+
+        self.preview_rom_name = tk.Label(self.preview_single_frame, text="",
+                                         bg=PANEL, fg=GREEN,
+                                         font=("Courier", 8), wraplength=430)
+        self.preview_rom_name.pack(pady=1)
+
+        # ── Grid view (up to 6 thumbnails 2×3) — shown for multiple files ────
+        self.preview_grid_frame = tk.Frame(self.preview_frame, bg=PANEL)
+        # not packed yet — appears when 2+ files are dropped
+        self.thumb_cells  = []
+        self.thumb_images = []
+
+        # ── Status bar ────────────────────────────────────────────────────────
+        self.preview_status = tk.Label(self.preview_frame,
+                                       text="Drop a .vpx file to preview",
+                                       bg=PANEL, fg="#a0b4d0",
+                                       font=("Courier", 9, "italic"), wraplength=440)
+        self.preview_status.pack(side="bottom", pady=(4, 6))
+
+        # State
         self.current_preview_image = None
-        
-        btn_frame = tk.Frame(self.root, bg="#1e1e1e"); btn_frame.pack(fill="x", padx=30, pady=10)
-        self.btn_full = tk.Button(btn_frame, text="MAKE THE MAGIC HAPPEN", state="disabled", bg="#00ff00", command=lambda: self.start_thread("full"), **l_btn_opt)
-        self.btn_full.pack(side="left", fill="x", expand=True, padx=(0, 5))
-        self.btn_full.bind("<Enter>", lambda e: self.btn_full.config(bg="#33ff33") if self.btn_full['state'] == 'normal' else None)
-        self.btn_full.bind("<Leave>", lambda e: self.btn_full.config(bg="#00ff00") if self.btn_full['state'] == 'normal' else None)
-        
-        self.btn_vbs = tk.Button(btn_frame, text="CREATE CLEAN .VBS", state="disabled", bg="#00ccff", command=lambda: self.start_thread("vbs"), **l_btn_opt)
-        self.btn_vbs.pack(side="left", fill="x", expand=True, padx=5)
-        self.btn_vbs.bind("<Enter>", lambda e: self.btn_vbs.config(bg="#33ddff") if self.btn_vbs['state'] == 'normal' else None)
-        self.btn_vbs.bind("<Leave>", lambda e: self.btn_vbs.config(bg="#00ccff") if self.btn_vbs['state'] == 'normal' else None)
-        
-        self.btn_patch = tk.Button(btn_frame, text="PATCH ONLY", state="disabled", bg="#ff9900", command=lambda: self.start_thread("patch"), **l_btn_opt)
-        self.btn_patch.pack(side="right", fill="x", expand=True, padx=(5, 0))
-        self.btn_patch.bind("<Enter>", lambda e: self.btn_patch.config(bg="#ffaa33") if self.btn_patch['state'] == 'normal' else None)
-        self.btn_patch.bind("<Leave>", lambda e: self.btn_patch.config(bg="#ff9900") if self.btn_patch['state'] == 'normal' else None)
-        
-        tk.Button(self.root, text="CLEAR LIST", command=self.clear_list, bg="#ff4444", **btn_opt).pack(pady=(5, 10))
-        
-        # Credits
-        tk.Label(self.root, text="Coded by Major Frenchy with the help of Claude.ai", 
-                font=("Arial", 8), fg="#888888", bg="#1e1e1e").pack(pady=(0, 10))
+        self.thumb_images  = []
+        self._preview_data = []   # [{table_name, rom_name, image, thumb, loaded}]
+        self._zoom_index   = None # slot being shown in single view from grid
+
+        # ── Action buttons ────────────────────────────────────────────────────
+        btn_frame = tk.Frame(self.root, bg=BG)
+        btn_frame.pack(fill="x", padx=28, pady=(4, 6))
+
+        self.btn_full = self._make_btn(btn_frame, "⚡  MAKE THE MAGIC HAPPEN",
+                                       GREEN, lambda: self.start_thread("full"), "#33ff99")
+        self.btn_full.config(state="disabled")
+        self.btn_full.pack(side="left", fill="x", expand=True, padx=(0, 4))
+
+        self.btn_vbs = self._make_btn(btn_frame, "◎  CREATE CLEAN .VBS",
+                                      CYAN, lambda: self.start_thread("vbs"), "#80d8ff")
+        self.btn_vbs.config(state="disabled")
+        self.btn_vbs.pack(side="left", fill="x", expand=True, padx=4)
+
+        self.btn_fix = self._make_btn(btn_frame, "🔧  FIX SCRIPT",
+                                      "#ff3366", lambda: self.start_thread("fix"), "#ff6699")
+        self.btn_fix.config(state="disabled")
+        self.btn_fix.pack(side="left", fill="x", expand=True, padx=(4, 0))
+
+        # ── Bottom bar ────────────────────────────────────────────────────────
+        bot = tk.Frame(self.root, bg=BG)
+        bot.pack(fill="x", padx=28, pady=(0, 10))
+
+        # Load and resize logo to fit beside small text (~28px tall)
+        try:
+            _logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mf_logo.png")
+            _logo_img = Image.open(_logo_path).convert("RGBA")
+            _logo_img = _logo_img.resize((28, 28), Image.Resampling.LANCZOS)
+            self._logo_photo = ImageTk.PhotoImage(_logo_img)
+            tk.Label(bot, image=self._logo_photo, bg=BG).pack(side="right", padx=(4, 0))
+        except Exception:
+            self._logo_photo = None
+
+        tk.Label(bot, text="Brought to you by Major Frenchy .",
+                 font=("Courier", 11, "bold"), fg="#ffffff", bg=BG).pack(side="right")
 
     def log_audit(self, msg, tag=None):
         self.audit_list.config(state="normal"); self.audit_list.insert(tk.END, msg + "\n", tag); self.audit_list.config(state="disabled"); self.audit_list.see(tk.END)
@@ -271,6 +490,7 @@ class VPXStandaloneMergingUtility:
                                         lookup[v.lower()] = eid
                     self.vpsdb_lookup = lookup
                     break
+
                 except Exception as ve:
                     continue
 
@@ -282,6 +502,77 @@ class VPXStandaloneMergingUtility:
             with urllib.request.urlopen(req2, timeout=20) as r:
                 self.vpinmdb = json.loads(r.read().decode())
 
+            # ── 4. Load user custom mappings (optional) ──────────────────
+            custom_map_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "custom_mappings.txt")
+            if os.path.exists(custom_map_path):
+                try:
+                    with open(custom_map_path, 'r', encoding='utf-8') as cf:
+                        for line in cf:
+                            line = line.strip()
+                            if not line or line.startswith('#'):
+                                continue
+                            if '=' in line:
+                                table_name, vpinmdb_id = line.split('=', 1)
+                                table_name = table_name.strip()
+                                vpinmdb_id = vpinmdb_id.strip()
+                                if table_name and vpinmdb_id:
+                                    # Add both raw and normalized versions
+                                    self.vpsdb_lookup[table_name.lower()] = vpinmdb_id
+                                    norm = re.sub(r"[^\w\s]", " ", table_name.lower())
+                                    norm = re.sub(r"\s+", " ", norm).strip()
+                                    self.vpsdb_lookup[norm] = vpinmdb_id
+                except Exception:
+                    pass  # Silently ignore custom mapping errors
+            
+            # ── 5. Load local CSV database (optional) ────────────────────
+            csv_db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pinballxdatabase.csv")
+            if os.path.exists(csv_db_path):
+                try:
+                    import csv
+                    with open(csv_db_path, 'r', encoding='utf-8-sig') as csvf:
+                        reader = csv.DictReader(csvf)
+                        for row in reader:
+                            table_full = row.get('Table Name (Manufacturer Year)', '').strip()
+                            if not table_full:
+                                continue
+                            
+                            # Extract base name (before author/version info)
+                            # Format: "Table Name (Manufacturer Year) Author Version"
+                            # We want just the "Table Name (Manufacturer Year)" part
+                            parts = table_full.split()
+                            # Find where manufacturer/year ends
+                            base_end = -1
+                            for i, part in enumerate(parts):
+                                if part.endswith(')'):
+                                    base_end = i
+                                    break
+                            
+                            if base_end > 0:
+                                base_name = ' '.join(parts[:base_end+1])
+                            else:
+                                base_name = table_full
+                            
+                            # Also try without manufacturer/year
+                            clean_name = re.sub(r'\s*\([^)]+\)\s*', '', base_name).strip()
+                            
+                            # Use the IPDB number as the ID if available
+                            ipdb = row.get('IPDB Number', '').strip()
+                            if ipdb and ipdb != '-':
+                                vid = f"ipdb_{ipdb}"
+                            else:
+                                # Use normalized name as fallback ID
+                                vid = normalize(clean_name).replace(' ', '_')
+                            
+                            # Add various name formats to lookup
+                            for name_var in [base_name, clean_name, table_full]:
+                                if name_var:
+                                    norm = normalize(name_var)
+                                    if norm and norm not in self.vpsdb_lookup:
+                                        self.vpsdb_lookup[norm] = vid
+                                        self.vpsdb_lookup[name_var.lower()] = vid
+                except Exception:
+                    pass  # Silently ignore CSV errors
+            
             self.media_db_ready = True
             n = len(self.vpsdb_lookup)
             m = len(self.vpinmdb)
@@ -304,218 +595,393 @@ class VPXStandaloneMergingUtility:
                     text=f"\u26a0 DB failed: {err}", fg="#ff6600"))
 
     def update_preview(self, table_name, rom_name=None):
-        """Match table by title -> vpinmdb id -> fetch playfield image."""
-        self.preview_table_name.config(text=table_name[:42])
-        self.preview_rom_name.config(text=f"ROM: {rom_name}" if rom_name else "")
+        """Register a table for preview. 1 file = big single view. 2-6 = grid."""
+        # Find or assign slot
+        for i, d in enumerate(self._preview_data):
+            if d["table_name"] == table_name:
+                slot = i; break
+        else:
+            if len(self._preview_data) >= 6:
+                return
+            slot = len(self._preview_data)
+            self._preview_data.append({"table_name": table_name, "rom_name": rom_name,
+                                       "image": None, "thumb": None, "loaded": False})
 
+        n = len(self._preview_data)
+
+        if n == 1:
+            # ── Single big view ───────────────────────────────────────────────
+            self.preview_grid_frame.pack_forget()
+            self.preview_single_frame.pack(fill="both", expand=True)
+            self.btn_back_preview.pack_forget()
+            self._zoom_index = None
+            self.preview_title.config(text=table_name[:38])
+            self.preview_table_name.config(text=table_name)
+            self.preview_rom_name.config(text=f"ROM: {rom_name}" if rom_name else "")
+            self.preview_canvas.delete("all")
+            self.preview_canvas.create_text(
+                self.preview_canvas.winfo_width()//2 or 220,
+                self.preview_canvas.winfo_height()//2 or 245,
+                text="⏳", font=("Arial", 32), fill="#ffcc00", anchor="center")
+        else:
+            # ── Rebuild grid layout to match new count ────────────────────────
+            self._rebuild_grid(n)
+            if self._zoom_index is None:
+                self.preview_single_frame.pack_forget()
+                self.preview_grid_frame.pack(fill="both", expand=True, padx=6, pady=6)
+            self.preview_title.config(text=f"{n} TABLES")
+            # Re-setup all existing slots after grid rebuild
+            for i, d in enumerate(self._preview_data):
+                self._setup_thumb_cell(i, d["table_name"])
+                if d.get("loaded"):
+                    self._render_thumb(i)
+
+        # Start image fetch for this slot
+        self._start_fetch(slot, table_name, rom_name)
+
+    # Layout map: n_files -> (rows, cols)
+    GRID_LAYOUT = {2: (1,2), 3: (1,3), 4: (2,2), 5: (2,3), 6: (2,3)}
+
+    def _rebuild_grid(self, n):
+        """Destroy and recreate grid cells to match layout for n files."""
+        rows, cols = self.GRID_LAYOUT.get(n, (2, 3))
+
+        # Destroy old cells
+        for widget in self.preview_grid_frame.winfo_children():
+            widget.destroy()
+        self.thumb_cells  = []
+        self.thumb_images = []
+
+        # Remove old row/col configs
+        for i in range(6):
+            self.preview_grid_frame.columnconfigure(i, weight=0, minsize=0)
+            self.preview_grid_frame.rowconfigure(   i, weight=0, minsize=0)
+
+        # Thumb size based on layout
+        #  1×2 → wide, short   1×3 → wide, short   2×2 → medium   2×3 → small
+        sizes = {(1,2): (210, 260), (1,3): (138, 220),
+                 (2,2): (210, 190), (2,3): (138, 150)}
+        tw, th = sizes.get((rows, cols), (138, 150))
+
+        for row in range(rows):
+            self.preview_grid_frame.rowconfigure(row, weight=1)
+            for col in range(cols):
+                self.preview_grid_frame.columnconfigure(col, weight=1)
+                cell = tk.Frame(self.preview_grid_frame, bg="#0d101e",
+                                highlightthickness=1, highlightbackground="#2a3060")
+                cell.grid(row=row, column=col, padx=4, pady=4, sticky="nsew")
+                c = tk.Canvas(cell, bg="#0d101e", highlightthickness=0,
+                              width=tw, height=th)
+                c.pack(fill="both", expand=True)
+                lbl = tk.Label(cell, text="", bg="#0d101e", fg="#a0b4d0",
+                               font=("Courier", 7), wraplength=tw-10, justify="center")
+                lbl.pack(fill="x", pady=(0, 2))
+                self.thumb_cells.append((c, lbl))
+
+    def _start_fetch(self, slot, table_name, rom_name):
+        """Look up media DB and kick off background image download."""
         if not self.media_db_ready or not self.vpsdb_lookup or not self.vpinmdb:
-            self.preview_status.config(text="\u23f3 Media DB loading...", fg="#ffcc00")
-            self.show_placeholder_preview(table_name)
-            return
+            self._on_no_image(slot, table_name); return
 
         def normalize(s):
             s = s.lower()
-            s = re.sub(r"['\u2019\u2018`]", "", s)
+            s = re.sub(r"[\'\u2019\u2018`]", "", s)
             s = re.sub(r"[^a-z0-9\s]", " ", s)
-            s = re.sub(r"\s+", " ", s).strip()
-            return s
+            return re.sub(r"\s+", " ", s).strip()
 
         def word_sorted(s):
-            """Canonical key regardless of word order."""
-            words = sorted(w for w in s.split() if w not in ("the","a","an","of","and","in"))
-            return " ".join(words)
+            return " ".join(sorted(w for w in s.split() if w not in ("the","a","an","of","and","in")))
 
-
-        # Build candidate keys from the filename
-        candidates = []
         raw = table_name.strip()
-
-        # 1 - raw and normalized
-        norm_raw = normalize(raw)
-        candidates.append(raw.lower())
-        candidates.append(norm_raw)
-        candidates.append(word_sorted(norm_raw))
-
-        # 2 - strip parentheticals: "Ghostbusters Slimer (JP)" -> "Ghostbusters Slimer"
+        nr  = normalize(raw)
         clean = re.sub(r"\s*\(.*?\)", "", raw).strip()
-        norm_clean = normalize(clean)
-        candidates.append(clean.lower())
-        candidates.append(norm_clean)
-        candidates.append(word_sorted(norm_clean))
-
-        # 3 - swap suffix author back to prefix: "Ghostbusters Slimer (JP)" -> "jp ghostbusters slimer"
-        suffix_match = re.search(r"\(([^)]+)\)\s*$", raw)
-        if suffix_match:
-            author = suffix_match.group(1).strip()
-            rest = raw[:suffix_match.start()].strip()
-            norm_rest = normalize(rest)
-            candidates.append(f"{author.lower()}s {rest.lower()}")
-            candidates.append(f"{author.lower()} {rest.lower()}")
-            candidates.append(normalize(f"{author} {rest}"))
-            candidates.append(word_sorted(norm_rest))
-
-        # 4 - strip version tags: VPW, LE, Pro, Premium etc.
-        for suffix in [' le', ' pro', ' premium', ' vr', ' vpw', ' sg1', ' vpu']:
-            n = normalize(clean)
-            if n.endswith(suffix):
-                candidates.append(n[:-len(suffix)].strip())
-
-        # Deduplicate keeping order
-        seen = set()
-        unique = []
+        nc    = normalize(clean)
+        
+        candidates = [raw.lower(), nr, word_sorted(nr), clean.lower(), nc, word_sorted(nc)]
+        
+        # Try hyphenated variations (Spider-Man ↔ Spiderman)
+        if '-' in raw:
+            no_hyphen = raw.replace('-', '').replace('  ', ' ')
+            candidates.append(normalize(no_hyphen))
+        
+        # Known hyphenated names - try both with and without hyphen
+        known_hyphenated = {
+            'spiderman': 'spider-man',
+            'xmen': 'x-men',
+            'tmachine': 't-machine',
+        }
+        clean_lower = clean.lower()
+        for unhyphen, hyphen in known_hyphenated.items():
+            if unhyphen in clean_lower:
+                # Replace in the clean version
+                hyph_version = clean_lower.replace(unhyphen, hyphen)
+                candidates.append(normalize(hyph_version))
+        
+        # Expand abbreviations
+        if ' le' in nc or nc.endswith(' le'):
+            # LE = Limited Edition
+            expanded = nc.replace(' le', ' limited edition')
+            candidates.append(expanded)
+        
+        # Try with/without "The" at start
+        if clean.lower().startswith('the '):
+            without_the = clean[4:].strip()
+            candidates.append(normalize(without_the))
+        else:
+            candidates.append(normalize(f"the {clean}"))
+        
+        # Handle parenthetical manufacturer/year
+        sm = re.search(r"\(([^)]+)\)\s*$", raw)
+        if sm:
+            a = sm.group(1).strip(); rest = raw[:sm.start()].strip(); nr2 = normalize(rest)
+            candidates += [f"{a.lower()}s {rest.lower()}", f"{a.lower()} {rest.lower()}",
+                           normalize(f"{a} {rest}"), word_sorted(nr2)]
+            # Try just the manufacturer name without year
+            mfg_match = re.match(r"^([A-Za-z]+)", a)
+            if mfg_match:
+                mfg = mfg_match.group(1)
+                candidates.append(normalize(f"{mfg} {rest}"))
+        
+        # Strip common suffixes (most specific first)
+        suffixes = [
+            ' pinball adventure', ' pinball adventures', 
+            ' the pinball adventure', ' the pinball adventures',
+            ' vault edition', ' premium', ' le', ' pro', 
+            ' vr', ' vpw', ' sg1', ' vpu'
+        ]
+        for sfx in suffixes:
+            if nc.endswith(sfx): 
+                stripped = nc[:-len(sfx)].strip()
+                if stripped:
+                    candidates.append(stripped)
+                    # Also try plural/singular variations
+                    if stripped.endswith('s'):
+                        candidates.append(stripped[:-1])
+                    else:
+                        candidates.append(stripped + 's')
+        
+        seen, unique = set(), []
         for c in candidates:
-            if c and c not in seen:
-                seen.add(c)
-                unique.append(c)
+            if c and c not in seen: seen.add(c); unique.append(c)
 
-        media_id = None
-
-        # Exact match
-        for key in unique:
-            if key in self.vpsdb_lookup:
-                media_id = self.vpsdb_lookup[key]
-                break
-
-        # Substring fallback — only match if candidate covers at least 60% of lookup key
-        # This prevents "fire" matching "harry potter and the goblet of fire"
+        media_id = next((self.vpsdb_lookup[k] for k in unique if k in self.vpsdb_lookup), None)
         if not media_id:
-            best_id = None
-            best_ratio = 0.0
-            for key in unique:
-                if len(key) < 5:
-                    continue
-                for lk, lid in self.vpsdb_lookup.items():
-                    if key in lk:
-                        ratio = len(key) / len(lk)
-                        if ratio > best_ratio:
-                            best_ratio = ratio
+            # Fuzzy matching fallback: word-based similarity
+            best_id, best_score = None, 0.0
+            table_words = set(nc.split())  # Words from normalized table name
+            
+            for lk, lid in self.vpsdb_lookup.items():
+                if len(lk) < 3: continue
+                db_words = set(lk.split())
+                
+                # Method 1: Word overlap (if table has "hellboy" and DB has "hellboy", match!)
+                common = table_words & db_words
+                if common:
+                    score = len(common) / max(len(table_words), len(db_words))
+                    if score > best_score:
+                        best_score = score
+                        best_id = lid
+                
+                # Method 2: Substring matching for single-word tables
+                if len(table_words) == 1 and len(db_words) == 1:
+                    tw = list(table_words)[0]
+                    dw = list(db_words)[0]
+                    if tw in dw or dw in tw:
+                        score = min(len(tw), len(dw)) / max(len(tw), len(dw))
+                        if score > best_score:
+                            best_score = score
                             best_id = lid
-                    elif lk in key:
-                        ratio = len(lk) / len(key)
-                        if ratio > best_ratio:
-                            best_ratio = ratio
-                            best_id = lid
-            # Only accept if the match covers at least 60% of the string
-            if best_id and best_ratio >= 0.60:
-                media_id = best_id
-            elif best_id:
-                pass  # match found but below threshold
+            
+            # Accept if confidence is high enough
+            if best_id and best_score >= 0.5: media_id = best_id
 
-        if not media_id:
-            self.preview_status.config(text="Not found in database", fg="#888888")
-            self.show_placeholder_preview(table_name)
-            return
-
-        if media_id not in self.vpinmdb:
-            self.preview_status.config(text="No media for this table", fg="#888888")
-            self.show_placeholder_preview(table_name)
-            return
+        if not media_id or media_id not in self.vpinmdb:
+            self._on_no_image(slot, table_name); return
 
         entry = self.vpinmdb[media_id]
-        img_url = (entry.get("1k", {}).get("table")
-                   or entry.get("1k", {}).get("fss")
-                   or entry.get("wheel"))
+        url = (entry.get("1k", {}).get("table") or entry.get("1k", {}).get("fss") or entry.get("wheel"))
+        if not url:
+            self._on_no_image(slot, table_name); return
 
-        if not img_url:
-            self.show_placeholder_preview(table_name)
-            return
+        threading.Thread(target=self._fetch_image_for_slot,
+                         args=(url, slot, table_name), daemon=True).start()
 
-        self.preview_status.config(text="\u23f3 Loading image...", fg="#ffcc00")
-        threading.Thread(target=self._fetch_and_show_image,
-                         args=(img_url, table_name), daemon=True).start()
-
-    def _fetch_and_show_image(self, url, table_name):
-        """Background thread: download playfield + wheel, composite, push to UI."""
+    def _fetch_image_for_slot(self, url, slot, table_name):
+        """Background: download + prepare full + thumb images, then update UI."""
         try:
-            # ── Fetch playfield image ───────────────────────────────────────
             req = urllib.request.Request(url, headers={"User-Agent": "VPXMergeTool/1.0"})
             with urllib.request.urlopen(req, timeout=15) as r:
                 data = r.read()
+            img = Image.open(io.BytesIO(data)).convert("RGBA")
+            img = img.rotate(-90, expand=True)
 
-            playfield = Image.open(io.BytesIO(data)).convert("RGBA")
-            playfield = playfield.rotate(-90, expand=True)
-
-            # Scale to fit canvas (280 wide x 370 tall)
-            playfield.thumbnail((280, 370), Image.Resampling.LANCZOS)
-            canvas_w, canvas_h = 280, 370
-            pf_w, pf_h = playfield.size
-
-            # ── Try to fetch wheel image ────────────────────────────────────
-            wheel_img = None
+            # Try wheel
+            wheel = None
             try:
-                # Wheel URL is sibling of table URL: replace "1k/table.png" -> "wheel.png"
-                wheel_url = re.sub(r"1k/.*\.png$", "wheel.png", url)
-                if wheel_url != url:
-                    req2 = urllib.request.Request(wheel_url, headers={"User-Agent": "VPXMergeTool/1.0"})
+                wurl = re.sub(r"1k/.*\.png$", "wheel.png", url)
+                if wurl != url:
+                    req2 = urllib.request.Request(wurl, headers={"User-Agent": "VPXMergeTool/1.0"})
                     with urllib.request.urlopen(req2, timeout=10) as r2:
-                        wdata = r2.read()
-                    wheel_img = Image.open(io.BytesIO(wdata)).convert("RGBA")
-                    # Size wheel to ~28% of canvas width
-                    wheel_size = int(canvas_w * 0.342)
-                    wheel_img = wheel_img.resize((wheel_size, wheel_size), Image.Resampling.LANCZOS)
-            except Exception as we:
-                wheel_img = None
+                        wheel = Image.open(io.BytesIO(r2.read())).convert("RGBA")
+            except Exception:
+                wheel = None
 
-            # ── Composite onto blank canvas ─────────────────────────────────
-            canvas = Image.new("RGBA", (canvas_w, canvas_h), (26, 26, 26, 255))
+            full  = img.copy()
+            thumb = img.copy()
+            thumb.thumbnail((196, 146), Image.Resampling.LANCZOS)
 
-            # Centre playfield
-            pf_x = (canvas_w - pf_w) // 2
-            pf_y = (canvas_h - pf_h) // 2
-            canvas.paste(playfield, (pf_x, pf_y), playfield)
+            self._preview_data[slot]["image"]  = full
+            self._preview_data[slot]["wheel"]  = wheel
+            self._preview_data[slot]["thumb"]  = thumb
+            self._preview_data[slot]["loaded"] = True
 
-            # Overlay wheel bottom-centre with slight shadow effect
-            if wheel_img:
-                ww, wh = wheel_img.size
-                wx = (canvas_w - ww) // 2
-                wy = canvas_h - wh - 24  # moved up to avoid cutoff
+            self.root.after(0, lambda s=slot: self._render_slot(s))
+        except Exception:
+            self.root.after(0, lambda s=slot, n=table_name: self._on_no_image(s, n))
 
-                # Draw a subtle dark circle behind the wheel
-                shadow = Image.new("RGBA", (ww + 8, wh + 8), (0, 0, 0, 0))
-                from PIL import ImageDraw
-                ImageDraw.Draw(shadow).ellipse([0, 0, ww + 7, wh + 7], fill=(0, 0, 0, 120))
-                canvas.paste(shadow, (wx - 4, wy - 4), shadow)
+    def _render_slot(self, slot):
+        """Render slot: big view if single/zoomed, thumbnail if grid."""
+        if slot >= len(self._preview_data): return
+        data = self._preview_data[slot]
+        n    = len(self._preview_data)
 
-                canvas.paste(wheel_img, (wx, wy), wheel_img)
+        if n == 1 or self._zoom_index == slot:
+            # ── Full single view ──────────────────────────────────────────────
+            self._render_single(slot)
+        else:
+            # ── Grid thumbnail ────────────────────────────────────────────────
+            self._render_thumb(slot)
 
-            # Convert to PhotoImage
-            photo = ImageTk.PhotoImage(canvas)
+    def _render_single(self, slot):
+        """Draw full-size image with wheel overlay onto the big canvas."""
+        data  = self._preview_data[slot]
+        img   = data.get("image")
+        wheel = data.get("wheel")
+        if not img: return
 
-            def show(p=photo):
-                self.current_preview_image = p
-                self.preview_canvas.delete("all")
-                self.preview_canvas.create_image(canvas_w // 2, canvas_h // 2,
-                                                 anchor="center", image=p)
-                lbl = "✓ Preview + Wheel" if wheel_img else "✓ Preview loaded"
-                self.preview_status.config(text=lbl, fg="#00ff00")
+        self.preview_canvas.update_idletasks()
+        cw = self.preview_canvas.winfo_width()  or 440
+        ch = self.preview_canvas.winfo_height() or 490
 
-            self.root.after(0, show)
+        full = img.copy()
+        full.thumbnail((cw - 24, ch - 24), Image.Resampling.LANCZOS)
+        pf_w, pf_h = full.size
 
-        except Exception as e:
-            err = str(e)[:40]
-            self.root.after(0, lambda: self.show_placeholder_preview(table_name))
-            self.root.after(0, lambda msg=err: self.preview_status.config(
-                text=f"Image error: {msg}", fg="#ff6600"))
+        composite = Image.new("RGBA", (cw, ch), (26, 26, 26, 255))
+        px, py = (cw - pf_w)//2, (ch - pf_h)//2
+        composite.paste(full, (px, py), full)
+
+        if wheel:
+            from PIL import ImageDraw
+            ws = int(cw * 0.34)
+            wimg = wheel.copy(); wimg = wimg.resize((ws, ws), Image.Resampling.LANCZOS)
+            ww, wh = wimg.size
+            wx, wy = (cw - ww)//2, ch - wh - 24
+            shadow = Image.new("RGBA", (ww+8, wh+8), (0,0,0,0))
+            ImageDraw.Draw(shadow).ellipse([0,0,ww+7,wh+7], fill=(0,0,0,120))
+            composite.paste(shadow, (wx-4, wy-4), shadow)
+            composite.paste(wimg, (wx, wy), wimg)
+
+        photo = ImageTk.PhotoImage(composite)
+        self.current_preview_image = photo
+        self.preview_canvas.delete("all")
+        self.preview_canvas.create_image(cw//2, ch//2, anchor="center", image=photo)
+        ix, iy = (cw - pf_w)//2, (ch - pf_h)//2
+        self.preview_canvas.create_rectangle(ix-2, iy-2, ix+pf_w+2, iy+pf_h+2,
+                                              outline="#ffffff", width=2, fill="")
+        self.preview_status.config(text="✓ Preview loaded", fg="#00ff00")
+
+    def _render_thumb(self, slot):
+        """Draw thumbnail image into a grid cell."""
+        if slot >= len(self.thumb_cells): return
+        data  = self._preview_data[slot]
+        thumb = data.get("thumb")
+        if not thumb: return
+        canvas, lbl = self.thumb_cells[slot]
+        photo = ImageTk.PhotoImage(thumb)
+        while len(self.thumb_images) <= slot: self.thumb_images.append(None)
+        self.thumb_images[slot] = photo
+        cw = canvas.winfo_width()  or 200
+        ch = canvas.winfo_height() or 150
+        canvas.delete("all")
+        canvas.create_image(cw//2, ch//2, anchor="center", image=photo)
+        tw, th = thumb.size
+        ix, iy = (cw-tw)//2, (ch-th)//2
+        canvas.create_rectangle(ix-1, iy-1, ix+tw+1, iy+th+1,
+                                 outline="#ffffff", width=1, fill="")
+
+    def _on_no_image(self, slot, table_name):
+        """No image available — show placeholder in the right context."""
+        n = len(self._preview_data)
+        if n == 1 or self._zoom_index == slot:
+            self.show_placeholder_preview(table_name)
+        else:
+            if slot >= len(self.thumb_cells): return
+            canvas, _ = self.thumb_cells[slot]
+            canvas.delete("all")
+            cw = canvas.winfo_width() or 200
+            ch = canvas.winfo_height() or 150
+            canvas.create_rectangle(4, 4, cw-4, ch-4, fill="#1a1a1a", outline="#2a3060")
+            canvas.create_text(cw//2, ch//2, text="No Preview",
+                               fill="#444466", font=("Arial", 8, "bold"), anchor="center")
+
+    def _setup_thumb_cell(self, slot, table_name):
+        """Set up grid cell label and click binding."""
+        if slot >= len(self.thumb_cells): return
+        canvas, lbl = self.thumb_cells[slot]
+        short = (table_name[:26] + "…") if len(table_name) > 26 else table_name
+        lbl.config(text=short)
+        canvas.delete("all")
+        cw = canvas.winfo_width() or 200; ch = canvas.winfo_height() or 150
+        canvas.create_text(cw//2, ch//2, text="⏳",
+                           font=("Arial", 18), fill="#ffcc00", anchor="center")
+        canvas.bind("<Button-1>", lambda e, s=slot: self._preview_zoom(s))
+        lbl.bind(   "<Button-1>", lambda e, s=slot: self._preview_zoom(s))
+
+    def _preview_zoom(self, slot):
+        """Click on grid thumbnail → show in big single view."""
+        if slot >= len(self._preview_data): return
+        self._zoom_index = slot
+        data = self._preview_data[slot]
+        # Switch to single view
+        self.preview_grid_frame.pack_forget()
+        self.preview_single_frame.pack(fill="both", expand=True)
+        self.btn_back_preview.pack(side="right", padx=(0, 8))
+        self.preview_title.config(text=data["table_name"][:38])
+        self.preview_table_name.config(text=data["table_name"])
+        self.preview_rom_name.config(text=f"ROM: {data['rom_name']}" if data.get("rom_name") else "")
+        if data.get("loaded"):
+            self._render_single(slot)
+        else:
+            self.preview_canvas.delete("all")
+            cw = self.preview_canvas.winfo_width() or 440
+            ch = self.preview_canvas.winfo_height() or 490
+            self.preview_canvas.create_text(cw//2, ch//2, text="⏳ Loading...",
+                                             fill="#ffcc00", font=("Arial", 14), anchor="center")
+
+    def _preview_back(self):
+        """Back from zoomed single view → return to grid."""
+        self._zoom_index = None
+        self.preview_single_frame.pack_forget()
+        self.preview_grid_frame.pack(fill="both", expand=True, padx=6, pady=6)
+        self.btn_back_preview.pack_forget()
+        self.preview_title.config(text=f"{len(self._preview_data)} TABLES")
+        self.preview_table_name.config(text="")
+        self.preview_rom_name.config(text="")
 
     def show_placeholder_preview(self, table_name):
-        """Styled placeholder when no image is available."""
+        """Draw placeholder on the big single canvas."""
         self.preview_canvas.delete("all")
-        w, h = 280, 370
-        self.preview_canvas.create_rectangle(5, 5, w-5, h-5,
+        cw = self.preview_canvas.winfo_width()  or 440
+        ch = self.preview_canvas.winfo_height() or 490
+        self.preview_canvas.create_rectangle(10, 10, cw-10, ch-10,
                                              fill="#1a1a1a", outline="#00ccff", width=2)
-        # Pinball icon
-        self.preview_canvas.create_oval(90, 110, 190, 210,
-                                        fill="#2a2a2a", outline="#00ccff", width=2)
-        self.preview_canvas.create_oval(115, 135, 165, 185,
-                                        fill="#00ccff", outline="#ffffff", width=1)
-        self.preview_canvas.create_text(w//2, 240,
-                                        text="No Preview\nAvailable",
-                                        fill="#666666", font=("Arial", 11, "bold"),
-                                        justify="center")
+        self.preview_canvas.create_text(cw//2, ch//2-20, text="No Preview\nAvailable",
+                                        fill="#666666", font=("Arial", 11, "bold"), justify="center")
         short = (table_name[:32] + "…") if len(table_name) > 32 else table_name
-        self.preview_canvas.create_text(w//2, 300, text=short,
+        self.preview_canvas.create_text(cw//2, ch//2+30, text=short,
                                         fill="#00ccff", font=("Arial", 8),
-                                        justify="center", width=260)
+                                        justify="center", width=cw-40)
         self.current_preview_image = None
 
     def browse_path(self, key, mode):
@@ -528,7 +994,16 @@ class VPXStandaloneMergingUtility:
     def extract_script(self, path):
         try:
             if path.lower().endswith('.vbs'):
-                with open(path, 'rb') as f: return f.read()
+                with open(path, 'rb') as f:
+                    raw = f.read()
+                # Auto-detect encoding by BOM — Windows VBS files are often UTF-16 LE
+                if raw[:2] == b'\xff\xfe':
+                    return raw.decode('utf-16-le', errors='ignore').encode('latin-1', errors='ignore')
+                elif raw[:2] == b'\xfe\xff':
+                    return raw.decode('utf-16-be', errors='ignore').encode('latin-1', errors='ignore')
+                elif raw[:3] == b'\xef\xbb\xbf':
+                    return raw[3:]  # strip UTF-8 BOM, rest is plain ASCII/latin-1
+                return raw  # plain ASCII or latin-1, return as-is
             if olefile.isOleFile(path):
                 with olefile.OleFileIO(path) as ole:
                     for s in ole.listdir():
@@ -537,7 +1012,7 @@ class VPXStandaloneMergingUtility:
                             d = stream.read()
                             # Must contain "Option Explicit" or "Option Base" - the definitive script marker
                             # This prevents matching binary streams that happen to contain ' bytes
-                            idx = d.find(b'Option ')
+                            idx = d.lower().find(b'option ')
                             if idx == -1:
                                 continue
                             # Verify this is actually text: 95%+ printable chars in first 200 bytes after marker
@@ -653,6 +1128,194 @@ class VPXStandaloneMergingUtility:
         except:
             return False
 
+    def auto_fix_script(self, script):
+        """Auto-patch common VPX standalone incompatibilities."""
+        if not script:
+            return script, []
+
+        fixes_applied = []
+        fixed = script
+
+        # 1. Fix WScript.Shell registry reads for NVRAM path
+        if 'WScript.Shell' in fixed or 'WshShell' in fixed:
+            # Replace GetNVramPath function
+            import re
+            pattern = r'Function GetNVramPath\(\).*?End [Ff]unction'
+            if re.search(pattern, fixed, re.DOTALL | re.IGNORECASE):
+                replacement = r'Function GetNVramPath()' + '\n    GetNVramPath = ".\\\\pinmame\\\\nvram\\\\"' + '\nEnd Function'
+                fixed = re.sub(pattern, replacement, fixed, flags=re.DOTALL | re.IGNORECASE)
+                fixes_applied.append("Fixed GetNVramPath() to use local pinmame folder")
+
+            # Remove standalone WScript.Shell CreateObject lines (any variable name)
+            lines = fixed.split('\n')
+            new_lines = []
+            for line in lines:
+                # Match: Set <variable> = CreateObject("WScript.Shell")
+                if re.search(r'Set\s+\w+\s*=\s*CreateObject\s*\(\s*["\']WScript\.Shell', line, re.IGNORECASE):
+                    new_lines.append("    ' " + line.strip() + " ' REMOVED - not supported in VPX standalone")
+                    if "Fixed WScript.Shell CreateObject" not in fixes_applied:
+                        fixes_applied.append("Removed WScript.Shell CreateObject (not supported)")
+                else:
+                    new_lines.append(line)
+            fixed = '\n'.join(new_lines)
+
+        # 2. Comment out problematic registry reads
+        if 'RegRead' in fixed:
+            lines = fixed.split('\n')
+            new_lines = []
+            for line in lines:
+                if 'RegRead' in line and '=' in line:
+                    # Extract variable being assigned
+                    var_match = re.search(r'(\w+)\s*=.*RegRead', line)
+                    if var_match:
+                        var_name = var_match.group(1)
+                        new_lines.append("    ' " + line.strip() + " ' REMOVED")
+                        new_lines.append(f'    {var_name} = ".\\\\\\\\pinmame\\\\\\\\nvram\\\\\\\\" \' Auto-fixed by VPX Utility')
+                        if "Fixed RegRead" not in fixes_applied:
+                            fixes_applied.append("Fixed RegRead to use local path")
+                    else:
+                        new_lines.append("    ' " + line.strip())
+                else:
+                    new_lines.append(line)
+            fixed = '\n'.join(new_lines)
+
+        # 3. Stub out other problematic COM objects
+        problematic_objects = [
+            ('SAPI.SpVoice', 'text-to-speech'),
+            ('WMPlayer.OCX', 'Windows Media Player'),
+        ]
+        for obj, desc in problematic_objects:
+            if obj in fixed:
+                lines = fixed.split('\n')
+                new_lines = []
+                for line in lines:
+                    if f'CreateObject("{obj}")' in line or f"CreateObject('{obj}')" in line:
+                        new_lines.append("    ' " + line.strip() + f" ' REMOVED - {desc} not supported")
+                        fixes_applied.append(f"Removed {desc} CreateObject")
+                    else:
+                        new_lines.append(line)
+                fixed = '\n'.join(new_lines)
+
+        # 4. Remove deprecated B2S.Server properties
+        deprecated_props = ['ShowDMDOnly', 'ShowFrame', 'ShowTitle']
+        b2s_fixed = False
+        for prop in deprecated_props:
+            if prop in fixed:
+                lines = fixed.split('\n')
+                new_lines = []
+                for line in lines:
+                    if f'.{prop}' in line and '=' in line:
+                        new_lines.append("    ' " + line.strip() + " ' REMOVED - deprecated B2S property")
+                        b2s_fixed = True
+                    else:
+                        new_lines.append(line)
+                fixed = '\n'.join(new_lines)
+        if b2s_fixed:
+            fixes_applied.append("Removed deprecated B2S properties (ShowDMDOnly, ShowFrame, ShowTitle)")
+
+        return fixed, fixes_applied
+
+
+    def scan_and_copy_media(self, source_pup_path, table_name, target_table_folder):
+        """
+        Scan POPMedia/Visual Pinball X subfolders and fuzzy-match media to table_name.
+        Outputs to target_table_folder/medias/
+        Skips silently if medias/ folder already exists.
+
+        Renaming:
+          Playfield  → table.mp4        Menu      → fulldmd.mp4
+          Loading    → loading.mp4      Gameinfo  → flyer.png
+          GameHelp   → rules.png        Backglass → bg.mp4
+          AudioLaunch→ audiolaunch.mp3  Audio     → audio.mp3
+          Wheel      → wheel.png  (wheel.apng preserved if source is .apng)
+        """
+        if not self.include_media.get():
+            return []
+        if not source_pup_path:
+            return []
+
+        # ── Output folder ────────────────────────────────────────────────────
+        media_dest = os.path.join(target_table_folder, "medias")
+        if os.path.isdir(media_dest):
+            return []          # already done — skip
+
+        # ── Locate POPMedia (one level up from PUPVideos source) ─────────────
+        parent       = os.path.dirname(source_pup_path.rstrip('/\\'))
+        popmedia     = os.path.join(parent, "POPMedia", "Visual Pinball X")
+        if not os.path.exists(popmedia):
+            return []
+
+        media_mappings = [
+            ("Playfield",    [".mp4", ".avi", ".f4v"],   "table"),
+            ("Menu",         [".mp4", ".avi", ".f4v"],   "fulldmd"),
+            ("Loading",      [".mp4", ".avi", ".f4v"],   "loading"),
+            ("Gameinfo",     [".png", ".jpg", ".jpeg"],  "flyer"),
+            ("GameHelp",     [".png", ".jpg", ".jpeg"],  "rules"),
+            ("Backglass",    [".mp4", ".avi", ".f4v"],   "bg"),
+            ("AudioLaunch",  [".mp3", ".wav"],           "audiolaunch"),
+            ("Audio",        [".mp3", ".wav"],           "audio"),
+            ("Wheel",        [".png", ".apng", ".jpg"],  "wheel"),
+        ]
+
+        copied = []
+
+        for folder_name, extensions, target_base in media_mappings:
+            src_folder = os.path.join(popmedia, folder_name)
+            if not os.path.exists(src_folder):
+                continue
+
+            # List only files with valid extensions
+            try:
+                candidates = [f for f in os.listdir(src_folder)
+                              if os.path.splitext(f)[1].lower() in extensions]
+            except Exception:
+                continue
+
+            # ── Exact match first, then fuzzy ────────────────────────────────
+            best_file, best_score = None, 0.0
+            for fname in candidates:
+                fbase = os.path.splitext(fname)[0]
+                if fbase.lower() == table_name.lower():
+                    best_file, best_score = fname, 1.0
+                    break
+                score = _mfuzzy(table_name, fbase)
+                if score > best_score:
+                    best_score, best_file = score, fname
+
+            if not best_file or best_score < 0.5:
+                continue
+
+            ext         = os.path.splitext(best_file)[1].lower()
+            target_name = f"{target_base}{ext}"
+            src_file    = os.path.join(src_folder, best_file)
+            dst_file    = os.path.join(media_dest, target_name)
+
+            try:
+                os.makedirs(media_dest, exist_ok=True)
+                shutil.copy2(src_file, dst_file)
+                copied.append({
+                    'original': f"{folder_name}/{best_file}",
+                    'renamed':  target_name,
+                    'score':    best_score,
+                })
+            except Exception:
+                pass
+
+        # ── Write media_log.ini ───────────────────────────────────────────────
+        if copied:
+            try:
+                with open(os.path.join(media_dest, "media_log.ini"), 'w', encoding='utf-8') as lf:
+                    lf.write(f"# Media Rename Log — {table_name}\n")
+                    lf.write(f"# Generated by VPXmerge\n")
+                    lf.write(f"# Original = Renamed\n\n")
+                    lf.write(f"[{table_name}]\n")
+                    for item in copied:
+                        lf.write(f"{item['original']} = {item['renamed']}\n")
+            except Exception:
+                pass
+
+        return copied
+
     def audit_logic(self, mode):
         # Random pinball quotes for "Make Magic Happen"
         pinball_quotes = [
@@ -689,7 +1352,9 @@ class VPXStandaloneMergingUtility:
         
         # Show progress bar for non-scan modes
         if mode != "scan":
-            self.progress_frame.pack(fill="x", padx=30, pady=5)
+            self.progress_frame.config(height=36, pady=4)
+            self.progress_bar.pack(fill="x")
+            self.progress_label.pack(anchor="w")
             self.progress_bar['value'] = 0
             self.progress_label.config(text="Initializing...")
         
@@ -702,6 +1367,9 @@ class VPXStandaloneMergingUtility:
         elif mode == "patch":
             self.log_audit("🔍 SEARCHING FOR PATCHES...", "white")
             self.log_audit("")
+        elif mode == "fix":
+            self.log_audit("🔧 AUTO-FIXING SCRIPT FOR VPX STANDALONE...", "white")
+            self.log_audit("")
         
         total_files = len(self.vpx_files)
         
@@ -710,6 +1378,8 @@ class VPXStandaloneMergingUtility:
             script_raw = self.extract_script(f)  # raw bytes - used for writing carbon copy
             # Decode to string for all regex/text operations
             script = script_raw.decode('latin-1', errors='ignore') if isinstance(script_raw, bytes) else (script_raw or '')
+            if not script and mode == "scan":
+                self.log_audit(f"⚠ Could not read script from: {fname}", "missing")
             table_dest = os.path.join(target_root, v_base)
             
             # Update progress
@@ -719,14 +1389,22 @@ class VPXStandaloneMergingUtility:
                 self.progress_label.config(text=f"Processing {idx + 1}/{total_files}: {v_base}")
                 self.root.update_idletasks()
             
-            # Setup Folder Structure
-            if mode != "scan": os.makedirs(table_dest, exist_ok=True)
+            # Setup Folder Structure — patch saves next to source, full/fix need table subfolder
+            if mode in ["full", "fix"]: os.makedirs(table_dest, exist_ok=True)
             
             # Extract ROM name for preview
             rom_for_preview = None
             if script:
-                rom_m = re.search(r'(?:Const\s+)?c?(?:Game|Rom)Name\s*=\s*"([^"]+)"', script, re.IGNORECASE)
-                rom_for_preview = rom_m.group(1) if rom_m else None
+                rom_m = re.search(r'(?:Const\s+)?c?(?:Game|Rom)Name\s*=\s*(["\'])([^"\']+)\1', script, re.IGNORECASE)
+                rom_for_preview = rom_m.group(2) if rom_m else None
+                if not rom_for_preview:
+                    cgame_m = re.search(r'cGameName\s*=\s*(["\'])([^"\']+)\1', script, re.IGNORECASE)
+                    if cgame_m:
+                        rom_for_preview = cgame_m.group(2).strip()
+                if not rom_for_preview:
+                    optrom_m = re.search(r'OptRom\s*=\s*(["\'])([^"\']+)\1', script, re.IGNORECASE)
+                    if optrom_m:
+                        rom_for_preview = optrom_m.group(2).strip()
             
             # Update preview with table info
             self.root.after(0, lambda tn=v_base, rn=rom_for_preview: self.update_preview(tn, rn))
@@ -739,10 +1417,57 @@ class VPXStandaloneMergingUtility:
             elif mode == "full": 
                 shutil.copy2(f, os.path.join(table_dest, fname))
                 self.file_stats['tables'] += 1
+                
+                # Copy media files if enabled
+                if self.include_media.get():
+                    media_dest_check = os.path.join(table_dest, "medias")
+                    if os.path.isdir(media_dest_check):
+                        self.log_audit(f"10-MEDIA: SKIPPED (medias/ already exists)", "yellow")
+                    else:
+                        media_copied = self.scan_and_copy_media(p_dir, v_base, table_dest)
+                        if media_copied:
+                            self.log_audit(f"10-MEDIA: {len(media_copied)} files copied → medias/", "found")
+                            for item in media_copied:
+                                self.log_audit(f"   → {item['original']} → {item['renamed']}  ({item['score']:.0%})", "found")
+                            self.file_stats['media'] = self.file_stats.get('media', 0) + len(media_copied)
+                        else:
+                            self.log_audit(f"10-MEDIA: No matching media found", "missing")
             elif mode == "patch": 
                 self.log_separator("double")
                 self.log_audit(f"  Table: {fname}", "table_name")
                 self.log_separator("single")
+
+            # 1. ROM Logic — detect before backglass so audit order matches numbering
+            rom = None
+            if script and mode not in ["patch", "fix"]:
+                rom_m = re.search(r'(?:Const\s+)?c?(?:Game|Rom)Name\s*=\s*(["\'])([^"\']+)\1', script, re.IGNORECASE)
+                rom = rom_m.group(2) if rom_m else None
+                # Fallback 1: explicitly look for cGameName = "value" if primary match missed
+                if not rom:
+                    cgame_m = re.search(r'cGameName\s*=\s*(["\'])([^"\']+)\1', script, re.IGNORECASE)
+                    if cgame_m:
+                        rom = cgame_m.group(2).strip()
+                # Fallback 2: OptRom = "playboys" style
+                if not rom:
+                    optrom_m = re.search(r'OptRom\s*=\s*(["\'])([^"\']+)\1', script, re.IGNORECASE)
+                    if optrom_m:
+                        rom = optrom_m.group(2).strip()
+                if rom:
+                    if not v_dir:
+                        if mode == "scan": self.log_audit(f"1-ROM: {rom} (VPINMAME path not set)", "missing")
+                    else:
+                        r_src = os.path.join(v_dir, "roms", f"{rom}.zip")
+                        if os.path.exists(r_src):
+                            if mode == "scan": self.log_audit(f"1-ROM: {rom} (DETECTED)", "found")
+                            elif mode == "full":
+                                rd = os.path.join(table_dest, "pinmame", "roms")
+                                os.makedirs(rd, exist_ok=True)
+                                shutil.copy2(r_src, rd)
+                                self.file_stats['roms'] += 1
+                        else:
+                            if mode == "scan": self.log_audit(f"1-ROM: {rom} NOT FOUND", "missing")
+                else:
+                    if mode == "scan": self.log_audit("1-ROM: NOT DETECTED IN SCRIPT", "missing")
 
             # 2. Backglass — purely file-based, no script needed
             if mode != "patch":
@@ -777,22 +1502,6 @@ class VPXStandaloneMergingUtility:
                         self.file_stats['backglass'] += 1
                 else:
                     if mode == "scan": self.log_audit("2-BACKGLASS: NOT FOUND", "missing")
-
-            if script and mode != "patch":
-                # 1. ROM Logic
-                rom_m = re.search(r'(?:Const\s+)?c?(?:Game|Rom)Name\s*=\s*["\']([^"\' ]+)["\']', script, re.IGNORECASE)
-                rom = rom_m.group(1) if rom_m else None
-                if rom:
-                    r_src = os.path.join(v_dir, "roms", f"{rom}.zip")
-                    if os.path.exists(r_src):
-                        if mode == "scan": self.log_audit(f"1-ROM: {rom} (DETECTED)", "found")
-                        elif mode == "full":
-                            rd = os.path.join(table_dest, "pinmame", "roms")
-                            os.makedirs(rd, exist_ok=True)
-                            shutil.copy2(r_src, rd)
-                            self.file_stats['roms'] += 1
-                    else:
-                        if mode == "scan": self.log_audit(f"1-ROM: {rom} NOT FOUND", "missing")
 
                 # 3. UltraDMD / FlexDMD Detection
                 uses_ultradmd = (re.search(r'UltraDMDTimer\.Enabled\s*=\s*1', script, re.IGNORECASE) or
@@ -860,7 +1569,6 @@ class VPXStandaloneMergingUtility:
 
                     if not dmd_found:
                         tried = [f"{n}{e}" for n in search_names for e in dmd_extensions]
-                        self.log_audit("3-ULTRADMD/FLEXDMD: NOT FOUND", "missing")
                         if flex_folder:
                             pass
                         if vbs_table_name:
@@ -879,40 +1587,68 @@ class VPXStandaloneMergingUtility:
                         else:
                             if mode == "scan": self.log_audit(f"{label}: NOT FOUND", "missing")
                 
-                pup_name = rom if rom else v_base
-                pup_src = os.path.join(p_dir, pup_name)
-                if os.path.exists(pup_src):
-                    if mode == "scan": self.log_audit(f"6-PUP-PACK: {pup_name} (DETECTED)", "found")
-                    elif mode == "full": 
-                        shutil.copytree(pup_src, os.path.join(table_dest, "pupvideos", pup_name), dirs_exist_ok=True)
-                        self.file_stats['pup_packs'] += 1
-                else:
+                # PUP pack: try rom name first, then v_base as fallback
+                pup_found = False
+                for pup_name in ([rom, v_base] if rom and rom != v_base else [v_base]):
+                    if not pup_name: continue
+                    pup_src = os.path.join(p_dir, pup_name)
+                    if os.path.exists(pup_src):
+                        if mode == "scan": self.log_audit(f"6-PUP-PACK: {pup_name} (DETECTED)", "found")
+                        elif mode == "full":
+                            shutil.copytree(pup_src, os.path.join(table_dest, "pupvideos", pup_name), dirs_exist_ok=True)
+                            self.file_stats['pup_packs'] += 1
+                        pup_found = True
+                        break
+                if not pup_found:
                     if mode == "scan": self.log_audit("6-PUP-PACK: NOT FOUND", "missing")
 
                 # 7. Music Logic (Flat Export to 'music' folder)
-                m_found, f_folders = False, set([v_base])
-                if rom: f_folders.add(rom)
-                pm_matches = re.findall(r'PlayMusic\s*"?([^"\r\n]+)', script, re.IGNORECASE)
+                # 8. Music — collect all subfolder references from PlayMusic calls
+                # Handles both:
+                #   PlayMusic "OBWAT/OBWAT1.mp3"  -> subfolder OBWAT in m_dir
+                #   PlayMusic "track.mp3"          -> flat file in m_dir root or named subfolder
+                m_found = False
+                f_folders = set()  # subfolder names to search for in m_dir
+
+                # Extract subfolder from PlayMusic "folder/file.mp3" or PlayMusic "folder\file.mp3"
+                pm_matches = re.findall(r'PlayMusic\s*["\']?([^"\',;\r\n]+)', script, re.IGNORECASE)
                 for path in pm_matches:
-                    if "\\" in path: f_folders.add(path.split("\\")[0].strip())
+                    path = path.strip().strip('"\'\\/ ')
+                    # Check for subfolder separator (/ or \)
+                    for sep in ['/', '\\\\', '\\']:
+                        if sep in path:
+                            folder = path.split(sep)[0].strip()
+                            if folder:
+                                f_folders.add(folder)
+                            break
+
+                # Also check MusicSubDirectory and fallback names
                 subdir_m = re.search(r'MusicSubDirectory\s*=\s*"([^"]+)"', script, re.IGNORECASE)
-                if subdir_m: f_folders.add(subdir_m.group(1).replace("\\", "").strip())
-                
+                if subdir_m:
+                    f_folders.add(subdir_m.group(1).replace("\\", "").strip())
+                # Fallback: rom name and v_base as folder names
+                f_folders.add(v_base)
+                if rom:
+                    f_folders.add(rom)
+
                 if os.path.exists(m_dir):
                     all_sub = [d for d in os.listdir(m_dir) if os.path.isdir(os.path.join(m_dir, d))]
                     for target in sorted(f_folders):
                         for real in all_sub:
                             if real.lower() == target.lower():
-                                m_found = True; full_m = os.path.join(m_dir, real)
+                                m_found = True
+                                full_m = os.path.join(m_dir, real)
+                                music_files = sorted([trk for trk in os.listdir(full_m) if trk.lower().endswith(('.mp3', '.ogg', '.wav', '.flac'))])
                                 if mode == "scan":
-                                    # Collect all music files
-                                    music_files = sorted([trk for trk in os.listdir(full_m) if trk.lower().endswith(('.mp3', '.ogg'))])
                                     files_str = ', '.join(music_files)
-                                    self.log_audit(f"8-MUSIC: (DETECTED) {real} [{files_str}]", "found")
+                                    self.log_audit(f"8-MUSIC: (DETECTED) {real}/ [{files_str}]", "found")
                                 elif mode == "full":
-                                    music_files = [trk for trk in os.listdir(full_m) if trk.lower().endswith(('.mp3', '.ogg'))]
+                                    # Preserve subfolder structure: music/OBWAT/*.mp3
+                                    dest_music = os.path.join(table_dest, "music", real)
+                                    os.makedirs(dest_music, exist_ok=True)
+                                    for trk in music_files:
+                                        shutil.copy2(os.path.join(full_m, trk), dest_music)
                                     self.file_stats['music_tracks'] += len(music_files)
-                                    shutil.copytree(full_m, os.path.join(table_dest, "music"), dirs_exist_ok=True)
                 if mode == "scan" and not m_found: self.log_audit("8-MUSIC: NOT FOUND", "missing")
 
                 # 9. Patch Lookup (GitHub) - runs in all modes
@@ -923,12 +1659,20 @@ class VPXStandaloneMergingUtility:
                         if mode == "scan":
                             self.log_audit(f"9-PATCH: {patch_name} (DETECTED)", "found")
                         elif mode in ["full", "patch"]:
-                            patch_save_path = os.path.join(table_dest, f"{v_base}.vbs")
+                            # For patch mode: save next to the source file
+                            # For full mode: save inside the export table folder
+                            if mode == "patch":
+                                save_dir = os.path.dirname(f)
+                            else:
+                                save_dir = table_dest
+                                os.makedirs(save_dir, exist_ok=True)
+                            patch_save_path = os.path.join(save_dir, f"{v_base}.vbs")
                             if self.download_patch(patch_result['download_url'], patch_save_path):
-                                self.log_audit(f"9-PATCH: {patch_name} downloaded", "found")
+                                self.log_audit(f"9-PATCH: {patch_name} (DOWNLOADED)", "found")
+                                self.log_audit(f"   → Saved: {patch_save_path}", "found")
                                 self.file_stats['patches'] += 1
                             else:
-                                self.log_audit(f"9-PATCH: Download failed", "missing")
+                                self.log_audit(f"9-PATCH: Download FAILED for {patch_name}", "missing")
                     else:
                         if mode == "scan":
                             self.log_audit("9-PATCH: NOT FOUND", "missing")
@@ -943,21 +1687,50 @@ class VPXStandaloneMergingUtility:
                 # VBS Creator
                 if mode == "vbs":
                     vbs_path = os.path.join(table_dest, f"{v_base}.vbs")
-                    raw_out = script_raw if isinstance(script_raw, bytes) else script.encode('latin-1', errors='replace')
-                    raw_out = raw_out.replace(b'\r\n', b'\n').replace(b'\r', b'\n')
-                    with open(vbs_path, "wb") as vf:
-                        vf.write(raw_out)
-                    self.log_audit(f"VBS CREATED: {v_base}.vbs", "found")
-                    self.file_stats['vbs_files'] += 1
+                    if script_raw and len(script_raw) > 0:
+                        raw_out = script_raw if isinstance(script_raw, bytes) else script.encode('latin-1', errors='replace')
+                        raw_out = raw_out.replace(b'\r\n', b'\n').replace(b'\r', b'\n')
+                        with open(vbs_path, "wb") as vf:
+                            vf.write(raw_out)
+                        self.log_audit(f"VBS CREATED: {v_base}.vbs ({len(raw_out):,} bytes)", "found")
+                        self.file_stats['vbs_files'] += 1
+                    else:
+                        self.log_audit(f"VBS FAILED: could not extract script from {fname}", "missing")
+
+                # Script Auto-Fixer
+                if mode == "fix":
+                    if script:
+                        fixed_script, fixes = self.auto_fix_script(script)
+                        if fixes:
+                            # Copy VPX to target subfolder and save fixed VBS next to it
+                            vpx_dest = os.path.join(table_dest, fname)
+                            fix_path = os.path.join(table_dest, f"{v_base}.vbs")
+                            # Only copy VPX if source and destination are different
+                            if os.path.abspath(f) != os.path.abspath(vpx_dest):
+                                shutil.copy2(f, vpx_dest)
+                            with open(fix_path, "w", encoding='latin-1', errors='replace') as vf:
+                                vf.write(fixed_script)
+                            self.log_audit(f"✓ FIXED: {v_base}.vbs", "found")
+                            for fix in fixes:
+                                self.log_audit(f"   • {fix}", "found")
+                            self.log_audit(f"   → VPX copied to: {table_dest}/", "found")
+                            self.log_audit(f"   → Fixed VBS saved next to VPX", "found")
+                            self.file_stats['vbs_files'] += 1
+                        else:
+                            self.log_audit(f"✓ NO ISSUES DETECTED in {fname}", "yellow")
+                    else:
+                        self.log_audit(f"✗ Could not read script from {fname}", "missing")
 
             if mode == "scan": 
                 self.log_separator("bottom")
                 self.log_audit("")
         self.root.after(0, self.reset_ui)
         
-        # Hide progress bar
+        # Hide progress bar — collapse frame back to 1px, no layout shift
         if mode != "scan":
-            self.progress_frame.pack_forget()
+            self.progress_bar.pack_forget()
+            self.progress_label.pack_forget()
+            self.progress_frame.config(height=1, pady=0)
         
         if mode != "scan" and target_root:
             self.log_audit("")
@@ -995,19 +1768,33 @@ class VPXStandaloneMergingUtility:
             subprocess.run(["open", target_root])
 
     def handle_drop(self, event):
-        self.clear_list(); files = [f.strip('{}') for f in self.root.tk.splitlist(event.data)]
-        self.vpx_files = [f for f in files if f.lower().endswith(('.vpx', '.vbs'))]; self.audit_logic("scan")
+        self.clear_list()
+        self.drop_hint.place_forget()  # hide drop hint once file is dropped
+        # splitlist handles brace-wrapped paths; strip any residual {} for safety
+        try:
+            raw_files = self.root.tk.splitlist(event.data)
+        except Exception:
+            raw_files = event.data.split()
+        files = []
+        for f in raw_files:
+            f = f.strip('{}').strip()
+            # Handle paths that still have braces around them (spaces/parens in name)
+            if f.startswith('{') and f.endswith('}'):
+                f = f[1:-1]
+            files.append(f)
+        self.vpx_files = [f for f in files if f.lower().endswith(('.vpx', '.vbs'))]
+        self.audit_logic("scan")
 
     def start_thread(self, mode):
         self.btn_full.config(state="disabled")
         self.btn_vbs.config(state="disabled")
-        self.btn_patch.config(state="disabled")
+        self.btn_fix.config(state="disabled")
         threading.Thread(target=lambda: self.audit_logic(mode), daemon=True).start()
 
     def reset_ui(self):
         if self.vpx_files:
             self.btn_full.config(state="normal")
-            self.btn_patch.config(state="normal")
+            self.btn_fix.config(state="normal")
             # VBS export only makes sense for .vpx files (extracts embedded script)
             # For .vbs source files the file IS already the script
             all_vbs = all(f.lower().endswith('.vbs') for f in self.vpx_files)
@@ -1020,14 +1807,28 @@ class VPXStandaloneMergingUtility:
         self.audit_list.config(state="disabled")
         self.btn_full.config(state="disabled")
         self.btn_vbs.config(state="disabled")
-        self.btn_patch.config(state="disabled")
+        self.btn_fix.config(state="disabled")
+        # Show drop hint again
+        try:
+            self.drop_hint.place(relx=0.5, rely=0.5, anchor="center")
+        except Exception:
+            pass
         
-        # Reset preview
+        # Reset preview — back to single view, clear all state
+        self._preview_data = []
+        self._zoom_index   = None
+        self.thumb_images  = []
+        self.current_preview_image = None
+        for c, lbl in self.thumb_cells:
+            c.delete("all"); lbl.config(text="")
+        self.preview_grid_frame.pack_forget()
+        self.preview_single_frame.pack(fill="both", expand=True)
+        self.btn_back_preview.pack_forget()
         self.preview_canvas.delete("all")
+        self.preview_title.config(text="TABLE PREVIEW")
         self.preview_table_name.config(text="")
         self.preview_rom_name.config(text="")
         self.preview_status.config(text="Drop a .vpx file to preview", fg="#888888")
-        self.current_preview_image = None
 
     def save_settings(self):
         data = {"sources": {k: v.get() for k, v in self.sources.items()}, "target": self.target.get()}
