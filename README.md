@@ -43,21 +43,23 @@ Open Terminal (macOS/Linux) or Command Prompt (Windows) and run:
 
 ```bash
 # Windows
-pip install Pillow olefile tkinterdnd2 --break-system-packages
+pip install tkinterdnd2 pillow --break-system-packages
 
 # macOS/Linux  
 pip3 install Pillow olefile tkinterdnd2 --break-system-packages
 ```
 
 **Required Packages:**
-- `Pillow` — Image processing for table previews
-- `olefile` — VPX file parsing (OLE format)
-- `tkinterdnd2` — Drag & drop support
+- `tkinterdnd2` - Drag & drop support
+- `pillow` (PIL) - Image preview thumbnails
+- `tkinter` - GUI framework (usually included with Python)
 
 **Note:** `tkinter` is included with Python by default. If missing:
 - **Ubuntu/Debian:** `sudo apt-get install python3-tk`
 - **macOS:** Included with official Python installer
 - **Windows:** Included with Python installer
+ **Optional:**
+- Internet connection for VPinMAME media database (preview images)
 
 ### Step 2: Download VPXmerge
 
