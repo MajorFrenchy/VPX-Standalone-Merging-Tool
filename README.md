@@ -57,7 +57,7 @@ pip3 install Pillow olefile tkinterdnd2 --break-system-packages
 **Note:** `tkinter` is included with Python by default. If missing:
 - **Ubuntu/Debian:** `sudo apt-get install python3-tk`
 - **macOS:** Included with official Python installer
-- **Windows:** Included with Python installer
+- **Windows:** Included with Python installer<br>
  **Optional:**
 - Internet connection for VPinMAME media database (preview images)
 
