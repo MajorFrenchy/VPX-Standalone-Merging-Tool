@@ -4,6 +4,7 @@
 
 VPXmerge streamlines your VPX table collection by automating exports, script fixes, media organization, and asset detection — all with an intuitive drag-and-drop interface.
 
+
 ---
 
 ## ✨ Features at a Glance
@@ -15,7 +16,8 @@ VPXmerge streamlines your VPX table collection by automating exports, script fix
 - 📦 **Batch Processing** — Handle entire collections at once
 - 🎮 **ROM Detection** — 3-tier fallback for maximum compatibility
 - 📝 **VBS Extraction** — Pull scripts from VPX files safely
-
+  <img src="{{ vpxmt.image }}" alt="{{ VPX Merging Tool }}" style="width:100%; border-radius:8px; margin-bottom:10px; object-fit:cover; height:160px;">
+    {% endif %}
 ---
 Screenshots
 <p align="center">
