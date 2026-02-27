@@ -46,7 +46,7 @@ Open Terminal (macOS/Linux) or Command Prompt (Windows) and run:
 
 ```bash
 # Windows
-pip install tkinterdnd2 pillow --break-system-packages
+pip install tkinterdnd2 pillow olefile
 
 # macOS/Linux  
 pip3 install Pillow olefile tkinterdnd2 --break-system-packages
@@ -56,6 +56,8 @@ pip3 install Pillow olefile tkinterdnd2 --break-system-packages
 - `tkinterdnd2` - Drag & drop support
 - `pillow` (PIL) - Image preview thumbnails
 - `tkinter` - GUI framework (usually included with Python)
+- `olefile` - GUI used to read and extract data from the .VPX
+
 
 **Note:** `tkinter` is included with Python by default. If missing:
 - **Ubuntu/Debian:** `sudo apt-get install python3-tk`
