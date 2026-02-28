@@ -34,31 +34,6 @@ def _mstrip(s):
 def _mkeywords(s):
     return set(_mnorm(_mstrip(s)).split()) - _MEDIA_NOISE
 
-def _detect_rom(script):
-    """Extract ROM name from VPX/VBS script using multiple fallback patterns."""
-    if not script:
-        return None
-    patterns = [
-        # Primary: cGameName, GameName, RomName, cRomName (with optional Const)
-        r'(?:Const\s+)?c?(?:Game|Rom)Name\s*=\s*(["\'])([^"\']+)\1',
-        # OptRom = "value"
-        r'OptRom\s*=\s*(["\'])([^"\']+)\1',
-        # TableROM = "value" / cRom = "value" / ROM = "value"
-        r'(?:Const\s+)?(?:Table)?c?Rom\s*=\s*(["\'])([^"\']+)\1',
-        # Controller.GameName = "value" / PinMAME.GameName = "value"
-        r'(?:Controller|PinMAME)\s*\.\s*GameName\s*=\s*(["\'])([^"\']+)\1',
-        # Bare .GameName = "value"
-        r'\.GameName\s*=\s*(["\'])([^"\']+)\1',
-    ]
-    for pat in patterns:
-        m = re.search(pat, script, re.IGNORECASE)
-        if m:
-            val = m.group(2).strip()
-            # ROM names are alphanumeric/underscore, max 32 chars
-            if val and len(val) <= 32 and re.match(r'^[a-zA-Z0-9_]+$', val):
-                return val
-    return None
-
 def _mfuzzy(a, b):
     """Return keyword overlap score 0.0–1.0 between two table names."""
     ka, kb = _mkeywords(a), _mkeywords(b)
@@ -2904,7 +2879,7 @@ class VPXStandaloneMergingUtility:
         tk.Label(opt_row, text="Format:", bg=BG, fg=CYAN,
                  font=("Courier", 11, "bold")).pack(side="left", padx=(10, 5))
         media_dropdown = ttk.Combobox(opt_row, textvariable=self.media_format,
-                                      values=["VPinFE", "Batocera", "PuP Media"],
+                                      values=["VPinFE", "PuP Media"],
                                       state="readonly", width=10,
                                       font=("Courier", 10))
         media_dropdown.pack(side="left")
@@ -3070,10 +3045,11 @@ class VPXStandaloneMergingUtility:
         self.btn_vbs.config(state="disabled")
         self.btn_vbs.pack(side="left", fill="x", expand=True, padx=4)
 
-        self.btn_fix = self._make_btn(btn_frame, "🔧  FIX SCRIPT",
-                                      "#ff3366", lambda: self.start_thread("fix"), "#ff6699")
-        self.btn_fix.config(state="disabled")
-        self.btn_fix.pack(side="left", fill="x", expand=True, padx=(4, 0))
+        # Fix Script button - DISABLED for now
+        # self.btn_fix = self._make_btn(btn_frame, "🔧  FIX SCRIPT",
+        #                               "#ff3366", lambda: self.start_thread("fix"), "#ff6699")
+        # self.btn_fix.config(state="disabled")
+        # self.btn_fix.pack(side="left", fill="x", expand=True, padx=(4, 0))
 
         # ── Bottom bar ────────────────────────────────────────────────────────
         bot = tk.Frame(self.root, bg=BG)
@@ -3586,30 +3562,54 @@ class VPXStandaloneMergingUtility:
             self._on_no_image(slot, table_name); return
 
         entry = self.vpinmdb[media_id]
-        url = (entry.get("1k", {}).get("table") or entry.get("1k", {}).get("fss") or entry.get("wheel"))
+        # Priority: cab (root) > table (1k) > fss (1k) > wheel (root)
+        # Determine which image type we're using
+        if entry.get("cab"):
+            url = entry.get("cab")
+            image_type = "cab"
+        elif entry.get("1k", {}).get("table"):
+            url = entry.get("1k", {}).get("table")
+            image_type = "table"
+        elif entry.get("1k", {}).get("fss"):
+            url = entry.get("1k", {}).get("fss")
+            image_type = "fss"
+        elif entry.get("wheel"):
+            url = entry.get("wheel")
+            image_type = "wheel"
+        else:
+            url = None
+            
         if not url:
             self._on_no_image(slot, table_name); return
 
         threading.Thread(target=self._fetch_image_for_slot,
-                         args=(url, slot, table_name), daemon=True).start()
+                         args=(url, slot, table_name, image_type), daemon=True).start()
 
-    def _fetch_image_for_slot(self, url, slot, table_name):
+    def _fetch_image_for_slot(self, url, slot, table_name, image_type="table"):
         """Background: download + prepare full + thumb images, then update UI."""
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "VPXMergeTool/1.0"})
             with urllib.request.urlopen(req, timeout=15) as r:
                 data = r.read()
             img = Image.open(io.BytesIO(data)).convert("RGBA")
-            img = img.rotate(-90, expand=True)
+            
+            # Cab images are already in correct orientation - no rotation needed
 
-            # Try wheel
+            # Try wheel - construct URL by replacing filename with wheel.png
             wheel = None
             try:
-                wurl = re.sub(r"1k/.*\.png$", "wheel.png", url)
+                # For cab.png: replace cab.png with wheel.png
+                # For 1k/table.png: replace 1k/table.png with wheel.png
+                if "/1k/" in url:
+                    wurl = re.sub(r"1k/.*\.png$", "wheel.png", url)
+                else:
+                    wurl = re.sub(r"[^/]+\.png$", "wheel.png", url)
+                
                 if wurl != url:
                     req2 = urllib.request.Request(wurl, headers={"User-Agent": "VPXMergeTool/1.0"})
                     with urllib.request.urlopen(req2, timeout=10) as r2:
                         wheel = Image.open(io.BytesIO(r2.read())).convert("RGBA")
+                        # No rotation - use wheel as-is (same as working version)
             except Exception:
                 wheel = None
 
@@ -3660,10 +3660,12 @@ class VPXStandaloneMergingUtility:
 
         if wheel:
             from PIL import ImageDraw
-            ws = int(cw * 0.34)
+            # Smaller size: 25% of canvas width (was 34%)
+            ws = int(cw * 0.25)
             wimg = wheel.copy(); wimg = wimg.resize((ws, ws), Image.Resampling.LANCZOS)
             ww, wh = wimg.size
-            wx, wy = (cw - ww)//2, ch - wh - 24
+            # Position in top-right corner with 65px padding
+            wx, wy = cw - ww - 65, 20
             shadow = Image.new("RGBA", (ww+8, wh+8), (0,0,0,0))
             ImageDraw.Draw(shadow).ellipse([0,0,ww+7,wh+7], fill=(0,0,0,120))
             composite.paste(shadow, (wx-4, wy-4), shadow)
@@ -4399,7 +4401,16 @@ class VPXStandaloneMergingUtility:
             # Extract ROM name for preview
             rom_for_preview = None
             if script:
-                rom_for_preview = _detect_rom(script)
+                rom_m = re.search(r'(?:Const\s+)?c?(?:Game|Rom)Name\s*=\s*(["\'])([^"\']+)\1', script, re.IGNORECASE)
+                rom_for_preview = rom_m.group(2) if rom_m else None
+                if not rom_for_preview:
+                    cgame_m = re.search(r'cGameName\s*=\s*(["\'])([^"\']+)\1', script, re.IGNORECASE)
+                    if cgame_m:
+                        rom_for_preview = cgame_m.group(2).strip()
+                if not rom_for_preview:
+                    optrom_m = re.search(r'OptRom\s*=\s*(["\'])([^"\']+)\1', script, re.IGNORECASE)
+                    if optrom_m:
+                        rom_for_preview = optrom_m.group(2).strip()
             
             # Update preview with table info
             self.root.after(0, lambda tn=v_base, rn=rom_for_preview: self.update_preview(tn, rn))
@@ -4445,30 +4456,32 @@ class VPXStandaloneMergingUtility:
             # 1. ROM Logic — detect before backglass so audit order matches numbering
             rom = None
             if script and mode not in ["patch", "fix"]:
-                rom = _detect_rom(script)
+                rom_m = re.search(r'(?:Const\s+)?c?(?:Game|Rom)Name\s*=\s*(["\'])([^"\']+)\1', script, re.IGNORECASE)
+                rom = rom_m.group(2) if rom_m else None
+                # Fallback 1: explicitly look for cGameName = "value" if primary match missed
+                if not rom:
+                    cgame_m = re.search(r'cGameName\s*=\s*(["\'])([^"\']+)\1', script, re.IGNORECASE)
+                    if cgame_m:
+                        rom = cgame_m.group(2).strip()
+                # Fallback 2: OptRom = "playboys" style
+                if not rom:
+                    optrom_m = re.search(r'OptRom\s*=\s*(["\'])([^"\']+)\1', script, re.IGNORECASE)
+                    if optrom_m:
+                        rom = optrom_m.group(2).strip()
                 if rom:
-                    if mode == "scan": self.log_audit(f"1-ROM: {rom} (DETECTED IN SCRIPT ✓)", "found")
                     if not v_dir:
-                        if mode == "scan": self.log_audit(f"   → zip lookup skipped (VPINMAME path not set)", "missing")
+                        if mode == "scan": self.log_audit(f"1-ROM: {rom} (VPINMAME path not set)", "missing")
                     else:
-                        # Search common rom locations: roms/ subfolder, and root vpinmame folder
-                        r_src = None
-                        for candidate in [
-                            os.path.join(v_dir, "roms", f"{rom}.zip"),
-                            os.path.join(v_dir, f"{rom}.zip"),
-                        ]:
-                            if os.path.exists(candidate):
-                                r_src = candidate
-                                break
-                        if r_src:
-                            if mode == "scan": self.log_audit(f"   → zip FOUND: {os.path.basename(r_src)}", "found")
+                        r_src = os.path.join(v_dir, "roms", f"{rom}.zip")
+                        if os.path.exists(r_src):
+                            if mode == "scan": self.log_audit(f"1-ROM: {rom} (DETECTED)", "found")
                             elif mode == "full":
                                 rd = os.path.join(table_dest, "pinmame", "roms")
                                 os.makedirs(rd, exist_ok=True)
                                 shutil.copy2(r_src, rd)
                                 self.file_stats['roms'] += 1
                         else:
-                            if mode == "scan": self.log_audit(f"   → zip NOT FOUND in vpinmame/roms/", "missing")
+                            if mode == "scan": self.log_audit(f"1-ROM: {rom} NOT FOUND", "missing")
                 else:
                     if mode == "scan": self.log_audit("1-ROM: NOT DETECTED IN SCRIPT", "missing")
 
@@ -4693,7 +4706,6 @@ class VPXStandaloneMergingUtility:
                     if script_raw and len(script_raw) > 0:
                         raw_out = script_raw if isinstance(script_raw, bytes) else script.encode('latin-1', errors='replace')
                         raw_out = raw_out.replace(b'\r\n', b'\n').replace(b'\r', b'\n')
-                        os.makedirs(table_dest, exist_ok=True)
                         with open(vbs_path, "wb") as vf:
                             vf.write(raw_out)
                         self.log_audit(f"VBS CREATED: {v_base}.vbs ({len(raw_out):,} bytes)", "found")
@@ -4790,28 +4802,15 @@ class VPXStandaloneMergingUtility:
         self.audit_logic("scan")
 
     def start_thread(self, mode):
-        # Validate target folder is set for operations that need it
-        if mode in ["full", "vbs", "fix"] and not self.target.get().strip():
-            self.log_audit("⚠ Please set an Export Target folder before running.", "missing")
-            return
         self.btn_full.config(state="disabled")
         self.btn_vbs.config(state="disabled")
-        self.btn_fix.config(state="disabled")
-
-        def _run():
-            try:
-                self.audit_logic(mode)
-            except Exception as e:
-                self.root.after(0, lambda: self.log_audit(f"⚠ Unexpected error: {e}", "missing"))
-            finally:
-                self.root.after(0, self.reset_ui)
-
-        threading.Thread(target=_run, daemon=True).start()
+        # self.btn_fix.config(state="disabled")  # Button removed
+        threading.Thread(target=lambda: self.audit_logic(mode), daemon=True).start()
 
     def reset_ui(self):
         if self.vpx_files:
             self.btn_full.config(state="normal")
-            self.btn_fix.config(state="normal")
+            # self.btn_fix.config(state="normal")  # Button removed
             # VBS export only makes sense for .vpx files (extracts embedded script)
             # For .vbs source files the file IS already the script
             all_vbs = all(f.lower().endswith('.vbs') for f in self.vpx_files)
@@ -4824,7 +4823,7 @@ class VPXStandaloneMergingUtility:
         self.audit_list.config(state="disabled")
         self.btn_full.config(state="disabled")
         self.btn_vbs.config(state="disabled")
-        self.btn_fix.config(state="disabled")
+        # self.btn_fix.config(state="disabled")  # Button removed
         # Show drop hint again
         try:
             self.drop_hint.place(relx=0.5, rely=0.5, anchor="center")
