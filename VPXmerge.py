@@ -5,7 +5,7 @@ import olefile, os, shutil, json, threading, subprocess, re, random, urllib.requ
 from PIL import Image, ImageTk
 import io
 
-VERSION = "1.0"
+VERSION = "1.3"
 
 # ── Media fuzzy matching helpers ──────────────────────────────────────────────
 _MEDIA_NOISE = {
@@ -4781,7 +4781,61 @@ class VPXStandaloneMergingUtility:
             self.log_separator("bottom")
             self.log_audit("")
             self.log_audit("--- TASK COMPLETED --- ENJOY!", "yellow")
-            subprocess.run(["open", target_root])
+            opened, detail = self._open_folder_in_file_manager(target_root)
+            if opened:
+                self.log_audit(f"Destination folder opened ({detail})", "found")
+            else:
+                self.log_audit(f"Could not auto-open destination folder ({detail})", "missing")
+                self.log_audit(f"Open manually: {target_root}", "yellow")
+
+    def _open_folder_in_file_manager(self, folder_path):
+        """Open the output folder on Windows/macOS/Linux using available system tools."""
+        target = os.path.abspath(folder_path or "")
+        if not target:
+            return False, "empty path"
+        if not os.path.isdir(target):
+            return False, "folder not found"
+
+        def _run_quiet(cmd):
+            try:
+                rc = subprocess.run(
+                    cmd,
+                    check=False,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                ).returncode
+                return rc == 0
+            except Exception:
+                return False
+
+        # Windows: Explorer
+        if os.name == "nt":
+            try:
+                os.startfile(target)  # type: ignore[attr-defined]
+                return True, "Explorer"
+            except Exception as e:
+                return False, f"Windows startfile failed: {e}"
+
+        # macOS: open
+        if shutil.which("open"):
+            if _run_quiet(["open", target]):
+                return True, "open"
+
+        # Linux/Desktop fallbacks
+        linux_openers = [
+            ["xdg-open", target],
+            ["gio", "open", target],
+            ["kde-open5", target],
+            ["kde-open", target],
+            ["gnome-open", target],
+        ]
+        for cmd in linux_openers:
+            if not shutil.which(cmd[0]):
+                continue
+            if _run_quiet(cmd):
+                return True, cmd[0]
+
+        return False, "no supported opener found (open/xdg-open/gio/kde-open/gnome-open)"
 
     def handle_drop(self, event):
         self.clear_list()
