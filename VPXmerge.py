@@ -1,9 +1,9 @@
+import olefile, os, shutil, json, threading, subprocess, re, random, urllib.request, io, platform
 import tkinter as tk
 from tkinter import filedialog, ttk
 from tkinterdnd2 import DND_FILES, TkinterDnD
-import olefile, os, shutil, json, threading, subprocess, re, random, urllib.request, urllib.error
 from PIL import Image, ImageTk
-import io
+
 
 VERSION = "1.0"
 
@@ -4788,7 +4788,12 @@ class VPXStandaloneMergingUtility:
             self.log_separator("bottom")
             self.log_audit("")
             self.log_audit("--- TASK COMPLETED --- ENJOY!", "yellow")
-            subprocess.run(["open", target_root])
+            if platform.system() == "Windows":
+                os.startfile(target_root)
+            elif platform.system() == "Darwin": # macOS
+                subprocess.run(["open", target_root])
+            else: # Linux
+                subprocess.run(["xdg-open", target_root])
 
     def handle_drop(self, event):
         self.clear_list()
