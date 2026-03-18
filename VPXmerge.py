@@ -3823,13 +3823,20 @@ class VPXStandaloneMergingUtility:
                             else:
                                 start = 0
                             raw = d[start:]
-                            # Strip OLE stream padding and ENDB footer from the end
-                            endb = raw.rfind(b'ENDB')
-                            if endb != -1:
-                                raw = raw[:endb].rstrip(b'\x00\x04')
-                            else:
-                                raw = raw.rstrip(b'\x00')
-                            return raw
+
+                            # 1. Kill the binary junk at the first null
+                            null_idx = raw.find(b'\x00')
+                            if null_idx != -1:
+                                raw = raw[:null_idx]
+
+                            # 2. Explicitly remove the Backspace character (\x08) 
+                            # and other common OLE "ghost" characters
+                            # \x08 = Backspace, \x0b = Vertical Tab, \x0c = Form Feed
+                            for char in [b'\x08', b'\x0b', b'\x0c']:
+                                raw = raw.replace(char, b'')
+
+                            # 3. Final trim of whitespace and OLE padding
+                            return raw.strip(b'\x00\x04\x20\x09\x0a\x0d')
         except: pass
         return None
 
