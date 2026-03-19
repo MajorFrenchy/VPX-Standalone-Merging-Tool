@@ -4,9 +4,8 @@ from tkinterdnd2 import DND_FILES, TkinterDnD
 import olefile, os, shutil, json, threading, subprocess, re, random, urllib.request, urllib.error
 from PIL import Image, ImageTk
 import io
-import difflib
 
-VERSION = "1.5"
+VERSION = "1.4"
 
 # ── Media fuzzy matching helpers ──────────────────────────────────────────────
 _MEDIA_NOISE = {
@@ -2738,7 +2737,6 @@ class VPXStandaloneMergingUtility:
         # File tracking for summary
         self.file_stats = {
             'tables': 0, 'roms': 0, 'backglass': 0, 'altsound': 0, 'altcolor': 0, 
-            'pov_files': 0,
             'pup_packs': 0, 'nvram_folders': 0, 'cfg_folders': 0,
             'music_tracks': 0, 'patches': 0, 'vbs_files': 0
         }
@@ -4353,7 +4351,6 @@ class VPXStandaloneMergingUtility:
         # Reset file stats
         self.file_stats = {
             'tables': 0, 'roms': 0, 'backglass': 0, 'altsound': 0, 'altcolor': 0, 
-            'pov_files': 0,
             'pup_packs': 0, 'nvram_folders': 0, 'cfg_folders': 0,
             'music_tracks': 0, 'patches': 0, 'vbs_files': 0
         }
@@ -4524,26 +4521,6 @@ class VPXStandaloneMergingUtility:
                 else:
                     if mode == "scan": self.log_audit("2-BACKGLASS: NOT FOUND", "missing")
 
-                # POV file (.ini) — same basename as the table .vpx
-                pov_src = None
-                pov_fname = None
-                for search_dir in [file_dir, t_dir]:
-                    if not search_dir:
-                        continue
-                    candidate = os.path.join(search_dir, f"{b2s_base}.ini")
-                    if os.path.exists(candidate) and os.path.isfile(candidate):
-                        pov_src, pov_fname = candidate, f"{b2s_base}.ini"
-                        break
-                if pov_src:
-                    if mode == "scan":
-                        self.log_audit("POV file ( DETECTED )", "found")
-                    elif mode == "full":
-                        shutil.copy2(pov_src, os.path.join(table_dest, pov_fname))
-                        self.file_stats['pov_files'] += 1
-                else:
-                    if mode == "scan":
-                        self.log_audit("POV file ( NOT FOUND )", "missing")
-
                 # 3. UltraDMD / FlexDMD Detection
                 uses_ultradmd = (re.search(r'UltraDMDTimer\.Enabled\s*=\s*1', script, re.IGNORECASE) or
                                  re.search(r'UseUltraDMD\s*=\s*1',              script, re.IGNORECASE))
@@ -4628,201 +4605,20 @@ class VPXStandaloneMergingUtility:
                         else:
                             if mode == "scan": self.log_audit(f"{label}: NOT FOUND", "missing")
                 
-                # PUP pack: physically scan PUP VIDEOS folder and match table/rom/pGameName
+                # PUP pack: try rom name first, then v_base as fallback
                 pup_found = False
-                pup_match = None
-                pup_parse_text = script or ""
-
-                # If scanning a .vpx, also parse matching sidecar .vbs for pGameName/cPuPPack hints
-                sidecar_vbs = None
-                if f.lower().endswith(".vpx"):
-                    sidecar_vbs = os.path.join(os.path.dirname(f), f"{v_base}.vbs")
-                elif f.lower().endswith(".vbs"):
-                    sidecar_vbs = f
-                if sidecar_vbs and os.path.isfile(sidecar_vbs):
-                    try:
-                        with open(sidecar_vbs, "r", encoding="latin-1", errors="ignore") as sf:
-                            sidecar_text = sf.read()
-                        if sidecar_text:
-                            pup_parse_text += "\n" + sidecar_text
-                    except Exception:
-                        pass
-
-                pgame_name = None
-                pgame_m = re.search(r'(?:Const\s+)?pGameName\s*=\s*(["\'])([^"\']+)\1', pup_parse_text, re.IGNORECASE)
-                if pgame_m:
-                    pgame_name = pgame_m.group(2).strip()
-                else:
-                    # Also support: Dim pGameName : pGameName = "name"
-                    pgame_m = re.search(r'\bpGameName\b[^=\r\n]*=\s*(["\'])([^"\']+)\1', pup_parse_text, re.IGNORECASE)
-                    if pgame_m:
-                        pgame_name = pgame_m.group(2).strip()
-
-                # Fallback used by some scripts
-                cpup_name = None
-                cpup_m = re.search(r'(?:Const\s+)?cPuPPack\s*=\s*(["\'])([^"\']+)\1', pup_parse_text, re.IGNORECASE)
-                if cpup_m:
-                    cpup_name = cpup_m.group(2).strip()
-
-                table_name_from_script = None
-                tname_m = re.search(r'(?:Const\s+)?TableName\s*=\s*(["\'])([^"\']+)\1', script, re.IGNORECASE)
-                if tname_m:
-                    table_name_from_script = tname_m.group(2).strip()
-
-                search_names = []
-                for n in [v_base, table_name_from_script, rom, pgame_name, cpup_name]:
-                    if not n:
-                        continue
-                    n = n.strip()
-                    if n and n.lower() not in [x.lower() for x in search_names]:
-                        search_names.append(n)
-
-                def _pup_compact(name):
-                    s = (name or "").lower().strip()
-                    # Convert possessive forms (Dragon's -> Dragon) before stripping punctuation
-                    s = re.sub(r"['\u2019\u2018]s\b", "", s)
-                    s = re.sub(r"[^a-z0-9]+", "", s)
-                    return s
-
-                if not p_dir:
-                    if mode == "scan":
-                        self.log_audit("6-PUP-PACK: PUPVIDEOS path not set", "missing")
-                elif not os.path.isdir(p_dir):
-                    if mode == "scan":
-                        self.log_audit("6-PUP-PACK: PUPVIDEOS folder not found", "missing")
-                else:
-                    # Direct folder check from script hints first (deterministic)
-                    direct_names = []
-                    for n in [pgame_name, cpup_name]:
-                        if not n:
-                            continue
-                        base_n = os.path.basename(n.strip().strip("/\\"))
-                        if base_n and base_n.lower() not in [x.lower() for x in direct_names]:
-                            direct_names.append(base_n)
-                    try:
-                        pup_folders = [e.name for e in os.scandir(p_dir) if e.is_dir()]
-                    except Exception:
-                        pup_folders = []
-
-                    # 1) Exact (case-insensitive) direct names
-                    for dname in direct_names:
-                        if pup_found:
-                            break
-                        for folder_name in pup_folders:
-                            if folder_name.lower() == dname.lower():
-                                pup_match = folder_name
-                                pup_found = True
-                                break
-
-                    # 2) Compact direct-name match (dragon's lair -> dragonlair)
-                    if not pup_found:
-                        compact_direct = [_pup_compact(n) for n in direct_names if _pup_compact(n)]
-                        for folder_name in pup_folders:
-                            folder_compact = _pup_compact(folder_name)
-                            if folder_compact and folder_compact in compact_direct:
-                                pup_match = folder_name
-                                pup_found = True
-                                break
-
-                    # 3) Direct-name contains/prefix match (dragonlair -> dragonlair-3screen)
-                    if not pup_found:
-                        compact_direct = [_pup_compact(n) for n in direct_names if _pup_compact(n)]
-                        best_folder = None
-                        best_len_delta = None
-                        for folder_name in pup_folders:
-                            folder_compact = _pup_compact(folder_name)
-                            if not folder_compact:
-                                continue
-                            for target_compact in compact_direct:
-                                if not target_compact:
-                                    continue
-                                if (folder_compact.startswith(target_compact) or
-                                    target_compact.startswith(folder_compact) or
-                                    target_compact in folder_compact or
-                                    folder_compact in target_compact):
-                                    len_delta = abs(len(folder_compact) - len(target_compact))
-                                    if best_folder is None or len_delta < best_len_delta:
-                                        best_folder = folder_name
-                                        best_len_delta = len_delta
-                        if best_folder:
-                            pup_match = best_folder
-                            pup_found = True
-
-                    # Exact case-insensitive folder-name match first
-                    for target_name in search_names:
-                        if pup_found:
-                            break
-                        for folder_name in pup_folders:
-                            if folder_name.lower() == target_name.lower():
-                                pup_match = folder_name
-                                pup_found = True
-                                break
-
-                    # Compact match (ignores spaces/punctuation/possessive)
-                    if not pup_found:
-                        compact_targets = [_pup_compact(n) for n in search_names if _pup_compact(n)]
-                        for folder_name in pup_folders:
-                            folder_compact = _pup_compact(folder_name)
-                            if not folder_compact:
-                                continue
-                            if folder_compact in compact_targets:
-                                pup_match = folder_name
-                                pup_found = True
-                                break
-
-                    # Near-match on compact names (handles small typos, e.g. dragonlain vs dragonlair)
-                    if not pup_found:
-                        compact_targets = [_pup_compact(n) for n in search_names if _pup_compact(n)]
-                        best_folder = None
-                        best_ratio = 0.0
-                        for folder_name in pup_folders:
-                            folder_compact = _pup_compact(folder_name)
-                            if not folder_compact:
-                                continue
-                            for target_compact in compact_targets:
-                                if not target_compact:
-                                    continue
-                                ratio = difflib.SequenceMatcher(None, target_compact, folder_compact).ratio()
-                                if ratio > best_ratio:
-                                    best_ratio, best_folder = ratio, folder_name
-                        if best_folder and best_ratio >= 0.86:
-                            pup_match = best_folder
-                            pup_found = True
-
-                    # Fuzzy fallback against physical folder names
-                    if not pup_found:
-                        best_folder, best_score = None, 0.0
-                        for target_name in search_names:
-                            for folder_name in pup_folders:
-                                score = _mfuzzy(target_name, folder_name)
-                                if score > best_score:
-                                    best_score, best_folder = score, folder_name
-                        if best_folder and best_score >= 0.5:
-                            pup_match = best_folder
-                            pup_found = True
-
-                    if pup_found and pup_match:
-                        if mode == "scan":
-                            self.log_audit(f"6-PUP-PACK: {pup_match} (DETECTED)", "found")
+                for pup_name in ([rom, v_base] if rom and rom != v_base else [v_base]):
+                    if not pup_name: continue
+                    pup_src = os.path.join(p_dir, pup_name)
+                    if os.path.exists(pup_src):
+                        if mode == "scan": self.log_audit(f"6-PUP-PACK: {pup_name} (DETECTED)", "found")
                         elif mode == "full":
-                            pup_src = os.path.join(p_dir, pup_match)
-                            shutil.copytree(pup_src, os.path.join(table_dest, "pupvideos", pup_match), dirs_exist_ok=True)
+                            shutil.copytree(pup_src, os.path.join(table_dest, "pupvideos", pup_name), dirs_exist_ok=True)
                             self.file_stats['pup_packs'] += 1
-                    else:
-                        if mode == "scan":
-                            self.log_audit("6-PUP-PACK: NOT FOUND", "missing")
-                            hint_names = []
-                            if pgame_name:
-                                hint_names.append(f"pGameName={pgame_name}")
-                            if cpup_name:
-                                hint_names.append(f"cPuPPack={cpup_name}")
-                            if rom:
-                                hint_names.append(f"rom={rom}")
-                            if v_base:
-                                hint_names.append(f"table={v_base}")
-                            if hint_names:
-                                self.log_audit(f"   Checked names: {', '.join(hint_names)}", "yellow")
-                            self.log_audit(f"   Checked folder: {p_dir}", "yellow")
+                        pup_found = True
+                        break
+                if not pup_found:
+                    if mode == "scan": self.log_audit("6-PUP-PACK: NOT FOUND", "missing")
 
                 # 7. VPinMAME per-ROM copy (nvram/cfg)
                 for subfolder, label, stat_key, preferred_ext in [
@@ -5026,8 +4822,6 @@ class VPXStandaloneMergingUtility:
                 self.log_audit(f"  ROMs Copied: {self.file_stats['roms']}", "found")
             if self.file_stats['backglass'] > 0:
                 self.log_audit(f"  Backglasses: {self.file_stats['backglass']}", "found")
-            if self.file_stats['pov_files'] > 0:
-                self.log_audit(f"  POV Files: {self.file_stats['pov_files']}", "found")
             if self.file_stats.get('ultradmd', 0) > 0:
                 self.log_audit(f"  UltraDMD/FlexDMD Packs: {self.file_stats['ultradmd']}", "found")
             if self.file_stats['altsound'] > 0:

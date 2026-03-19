@@ -6,7 +6,13 @@ VPXmerge streamlines your VPX table collection by automating exports, script fix
 
 ## Release Notes
 
+- v1.5: Stronger PuP folder logic / Copy table.ini
 - v1.4: added cfg and nvram detection.
+
+## Versions
+
+- Latest version stays on main page: `VPXmerge.py`
+- Older versions are archived in `versions/`
 
 [![Watch the video](https://img.youtube.com/vi/pPD1GJQKCT8/maxresdefault.jpg)](https://www.youtube.com/watch?v=pPD1GJQKCT8)
 YOUTUBE VIDEO
