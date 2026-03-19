@@ -4,6 +4,10 @@
 
 VPXmerge streamlines your VPX table collection by automating exports, script fixes, media organization, and asset detection — all with an intuitive drag-and-drop interface.
 
+## Release Notes
+
+- v1.4: added cfg and nvram detection.
+
 [![Watch the video](https://img.youtube.com/vi/pPD1GJQKCT8/maxresdefault.jpg)](https://www.youtube.com/watch?v=pPD1GJQKCT8)
 YOUTUBE VIDEO
 ---

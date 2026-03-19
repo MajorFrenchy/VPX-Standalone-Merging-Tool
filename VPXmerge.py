@@ -5,7 +5,7 @@ import olefile, os, shutil, json, threading, subprocess, re, random, urllib.requ
 from PIL import Image, ImageTk
 import io
 
-VERSION = "1.3"
+VERSION = "1.4"
 
 # ── Media fuzzy matching helpers ──────────────────────────────────────────────
 _MEDIA_NOISE = {
@@ -2737,7 +2737,8 @@ class VPXStandaloneMergingUtility:
         # File tracking for summary
         self.file_stats = {
             'tables': 0, 'roms': 0, 'backglass': 0, 'altsound': 0, 'altcolor': 0, 
-            'pup_packs': 0, 'music_tracks': 0, 'patches': 0, 'vbs_files': 0
+            'pup_packs': 0, 'nvram_folders': 0, 'cfg_folders': 0,
+            'music_tracks': 0, 'patches': 0, 'vbs_files': 0
         }
         
         # Media DB - loaded in background at startup
@@ -4350,7 +4351,8 @@ class VPXStandaloneMergingUtility:
         # Reset file stats
         self.file_stats = {
             'tables': 0, 'roms': 0, 'backglass': 0, 'altsound': 0, 'altcolor': 0, 
-            'pup_packs': 0, 'music_tracks': 0, 'patches': 0, 'vbs_files': 0
+            'pup_packs': 0, 'nvram_folders': 0, 'cfg_folders': 0,
+            'music_tracks': 0, 'patches': 0, 'vbs_files': 0
         }
         
         t_dir, v_dir, p_dir, m_dir = [self.sources[k].get() for k in ["tables", "vpinmame", "pupvideos", "music"]]
@@ -4618,7 +4620,67 @@ class VPXStandaloneMergingUtility:
                 if not pup_found:
                     if mode == "scan": self.log_audit("6-PUP-PACK: NOT FOUND", "missing")
 
-                # 7. Music Logic (Flat Export to 'music' folder)
+                # 7. VPinMAME per-ROM copy (nvram/cfg)
+                for subfolder, label, stat_key, preferred_ext in [
+                    ("nvram", "7-NVRAM", "nvram_folders", ".nv"),
+                    ("cfg", "7-CFG", "cfg_folders", ".cfg")
+                ]:
+                    if not v_dir:
+                        if mode == "scan":
+                            self.log_audit(f"{label}: VPINMAME path not set", "missing")
+                        continue
+
+                    src_subfolder = os.path.join(v_dir, subfolder)
+                    if not os.path.isdir(src_subfolder):
+                        if mode == "scan":
+                            self.log_audit(f"{label}: NOT FOUND", "missing")
+                        continue
+
+                    if not rom:
+                        if mode == "scan":
+                            self.log_audit(f"{label}: ROM NOT DETECTED IN SCRIPT", "missing")
+                        continue
+
+                    try:
+                        entries = sorted(os.listdir(src_subfolder))
+                    except Exception:
+                        entries = []
+
+                    rom_l = rom.lower()
+                    matched_name = None
+
+                    # Prefer exact expected filename (e.g. romname.nv / romname.cfg)
+                    for entry in entries:
+                        if entry.lower() == f"{rom_l}{preferred_ext}":
+                            matched_name = entry
+                            break
+
+                    # Fallback: exact stem/name match on ROM
+                    if not matched_name:
+                        for entry in entries:
+                            entry_l = entry.lower()
+                            if entry_l == rom_l or os.path.splitext(entry_l)[0] == rom_l:
+                                matched_name = entry
+                                break
+
+                    if not matched_name:
+                        if mode == "scan":
+                            self.log_audit(f"{label}: NOT FOUND ({rom})", "missing")
+                        continue
+
+                    src_item = os.path.join(src_subfolder, matched_name)
+                    if mode == "scan":
+                        self.log_audit(f"{label}: {matched_name} (DETECTED)", "found")
+                    elif mode == "full":
+                        dst_subfolder = os.path.join(table_dest, "pinmame", subfolder)
+                        os.makedirs(dst_subfolder, exist_ok=True)
+                        dst_item = os.path.join(dst_subfolder, matched_name)
+                        if os.path.isdir(src_item):
+                            shutil.copytree(src_item, dst_item, dirs_exist_ok=True)
+                        else:
+                            shutil.copy2(src_item, dst_item)
+                        self.file_stats[stat_key] += 1
+
                 # 8. Music — collect all subfolder references from PlayMusic calls
                 # Handles both:
                 #   PlayMusic "OBWAT/OBWAT1.mp3"  -> subfolder OBWAT in m_dir
@@ -4768,6 +4830,10 @@ class VPXStandaloneMergingUtility:
                 self.log_audit(f"  AltColor Packs: {self.file_stats['altcolor']}", "found")
             if self.file_stats['pup_packs'] > 0:
                 self.log_audit(f"  PuP-Packs: {self.file_stats['pup_packs']}", "found")
+            if self.file_stats['nvram_folders'] > 0:
+                self.log_audit(f"  NVRAM Folders: {self.file_stats['nvram_folders']}", "found")
+            if self.file_stats['cfg_folders'] > 0:
+                self.log_audit(f"  CFG Folders: {self.file_stats['cfg_folders']}", "found")
             if self.file_stats['music_tracks'] > 0:
                 self.log_audit(f"  Music Tracks: {self.file_stats['music_tracks']}", "found")
             if self.file_stats['patches'] > 0:
