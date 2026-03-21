@@ -6,6 +6,8 @@ VPXmerge streamlines your VPX table collection by automating exports, script fix
 
 ## Release Notes
 
+- v1.7: Serum shown separately from AltColor, POV `tablename.ini` name shown in auditor, title cleanup.
+- v1.6: Serum .Crz detection + copy to table/serum/
 - v1.5: Stronger PuP folder logic / Copy table.ini
 - v1.4: added cfg and nvram detection.
 
