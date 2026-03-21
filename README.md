@@ -6,6 +6,7 @@ VPXmerge streamlines your VPX table collection by automating exports, script fix
 
 ## Release Notes
 
+- v1.7.2: Fixed Windows packaging in GitHub Actions release workflow.
 - v1.7.1: GitHub release artifacts now use clear platform names for macOS, Linux, and Windows.
 - v1.7: Serum shown separately from AltColor, POV `tablename.ini` name shown in auditor, title cleanup.
 - v1.6: Serum .Crz detection + copy to table/serum/

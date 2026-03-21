@@ -61,7 +61,7 @@ jobs:
         shell: pwsh
         run: |
           $appVer = "${env:GITHUB_REF_NAME}".TrimStart("v")
-          Compress-Archive -Path "dist/VPXmerge_v$appVer.exe" -DestinationPath "dist/VPXmerge_v$appVer-Windows.zip" -Force
+          Compress-Archive -Path "dist/VPXmerge_v$appVer/*" -DestinationPath "dist/VPXmerge_v$appVer-Windows.zip" -Force
 
       - name: Upload artifact (macOS)
         if: runner.os == 'macOS'
