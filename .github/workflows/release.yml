@@ -62,24 +62,16 @@ jobs:
           cp "dist/${APP_NAME}/${APP_NAME}" "${APPDIR}/usr/bin/${APP_NAME}"
           chmod +x "${APPDIR}/usr/bin/${APP_NAME}"
 
-          cat > "${APPDIR}/${APP_NAME}.desktop" <<EOF
-[Desktop Entry]
-Type=Application
-Name=${APP_NAME}
-Exec=${APP_NAME}
-Icon=${APP_NAME}
-Categories=Utility;
-Terminal=false
-EOF
+          printf '%s\n' \
+            '[Desktop Entry]' \
+            'Type=Application' \
+            "Name=${APP_NAME}" \
+            "Exec=${APP_NAME}" \
+            "Icon=${APP_NAME}" \
+            'Categories=Utility;' \
+            'Terminal=false' > "${APPDIR}/${APP_NAME}.desktop"
 
-          python - <<'PY'
-from PIL import Image, ImageDraw
-img = Image.new("RGBA", (256, 256), (28, 32, 45, 255))
-d = ImageDraw.Draw(img)
-d.rectangle((24, 24, 232, 232), outline=(0, 200, 255, 255), width=8)
-d.text((72, 108), "VPX", fill=(0, 200, 255, 255))
-img.save("icon.png")
-PY
+          python -c "from PIL import Image, ImageDraw; img=Image.new('RGBA',(256,256),(28,32,45,255)); d=ImageDraw.Draw(img); d.rectangle((24,24,232,232), outline=(0,200,255,255), width=8); d.text((72,108),'VPX', fill=(0,200,255,255)); img.save('icon.png')"
 
           cp icon.png "${APPDIR}/${APP_NAME}.png"
 

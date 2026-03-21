@@ -6,6 +6,7 @@ VPXmerge streamlines your VPX table collection by automating exports, script fix
 
 ## Release Notes
 
+- v1.7.4: Fixed GitHub workflow YAML parsing and Linux AppImage packaging flow.
 - v1.7.3: Added Linux AppImage release artifact for double-click launching.
 - v1.7.2: Fixed Windows packaging in GitHub Actions release workflow.
 - v1.7.1: GitHub release artifacts now use clear platform names for macOS, Linux, and Windows.
