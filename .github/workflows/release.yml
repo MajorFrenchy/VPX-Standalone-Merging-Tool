@@ -40,45 +40,49 @@ jobs:
       - name: Build binary
         shell: bash
         run: |
-          pyinstaller --noconfirm --windowed --name VPXmerge_v1.7 VPXmerge.py
+          APP_VER="${GITHUB_REF_NAME#v}"
+          pyinstaller --noconfirm --windowed --name "VPXmerge_v${APP_VER}" VPXmerge.py
 
       - name: Package artifact (macOS)
         if: runner.os == 'macOS'
         run: |
-          ditto -c -k --sequesterRsrc --keepParent dist/VPXmerge_v1.7.app dist/VPXmerge_v1.7-macos.zip
+          APP_VER="${GITHUB_REF_NAME#v}"
+          ditto -c -k --sequesterRsrc --keepParent "dist/VPXmerge_v${APP_VER}.app" "dist/VPXmerge_v${APP_VER}-macOS.zip"
 
       - name: Package artifact (Linux)
         if: runner.os == 'Linux'
         run: |
+          APP_VER="${GITHUB_REF_NAME#v}"
           cd dist
-          tar -czf VPXmerge_v1.7-linux.tar.gz VPXmerge_v1.7
+          tar -czf "VPXmerge_v${APP_VER}-Linux.tar.gz" "VPXmerge_v${APP_VER}"
 
       - name: Package artifact (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path dist/VPXmerge_v1.7.exe -DestinationPath dist/VPXmerge_v1.7-windows.zip -Force
+          $appVer = "${env:GITHUB_REF_NAME}".TrimStart("v")
+          Compress-Archive -Path "dist/VPXmerge_v$appVer.exe" -DestinationPath "dist/VPXmerge_v$appVer-Windows.zip" -Force
 
       - name: Upload artifact (macOS)
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
-          name: VPXmerge_v1.7-macos
-          path: dist/VPXmerge_v1.7-macos.zip
+          name: VPXmerge-${{ github.ref_name }}-macOS
+          path: dist/VPXmerge_${{ github.ref_name }}-macOS.zip
 
       - name: Upload artifact (Linux)
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
-          name: VPXmerge_v1.7-linux
-          path: dist/VPXmerge_v1.7-linux.tar.gz
+          name: VPXmerge-${{ github.ref_name }}-Linux
+          path: dist/VPXmerge_${{ github.ref_name }}-Linux.tar.gz
 
       - name: Upload artifact (Windows)
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
-          name: VPXmerge_v1.7-windows
-          path: dist/VPXmerge_v1.7-windows.zip
+          name: VPXmerge-${{ github.ref_name }}-Windows
+          path: dist/VPXmerge_${{ github.ref_name }}-Windows.zip
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
