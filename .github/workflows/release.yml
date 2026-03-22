@@ -30,7 +30,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-tk tk-dev desktop-file-utils
+          sudo apt-get install -y python3-tk tk-dev desktop-file-utils dpkg-dev
 
       - name: Install Python dependencies
         run: |
@@ -55,6 +55,7 @@ jobs:
           APP_VER="${GITHUB_REF_NAME#v}"
           APP_NAME="VPXmerge_v${APP_VER}"
           APPDIR="${APP_NAME}.AppDir"
+          DEBROOT="${APP_NAME}_debroot"
 
           rm -rf "${APPDIR}"
           mkdir -p "${APPDIR}/usr/bin"
@@ -78,6 +79,30 @@ jobs:
           curl -L -o appimagetool.AppImage https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool.AppImage
           APPIMAGE_EXTRACT_AND_RUN=1 ARCH=x86_64 ./appimagetool.AppImage "${APPDIR}" "dist/${APP_NAME}-Linux.AppImage"
+
+          # Build .deb installer for easy double-click install.
+          rm -rf "${DEBROOT}"
+          mkdir -p "${DEBROOT}/DEBIAN" "${DEBROOT}/usr/local/bin" "${DEBROOT}/usr/share/applications" "${DEBROOT}/usr/share/pixmaps"
+          cp "dist/${APP_NAME}/${APP_NAME}" "${DEBROOT}/usr/local/bin/vpxmerge"
+          chmod 755 "${DEBROOT}/usr/local/bin/vpxmerge"
+          cp icon.png "${DEBROOT}/usr/share/pixmaps/vpxmerge.png"
+          printf '%s\n' \
+            '[Desktop Entry]' \
+            'Type=Application' \
+            'Name=VPXmerge' \
+            'Exec=/usr/local/bin/vpxmerge' \
+            'Icon=vpxmerge' \
+            'Categories=Utility;' \
+            'Terminal=false' > "${DEBROOT}/usr/share/applications/vpxmerge.desktop"
+          printf '%s\n' \
+            'Package: vpxmerge' \
+            "Version: ${APP_VER}" \
+            'Section: utils' \
+            'Priority: optional' \
+            'Architecture: amd64' \
+            'Maintainer: VPXmerge <noreply@example.com>' \
+            'Description: VPX Standalone Merging Tool' > "${DEBROOT}/DEBIAN/control"
+          dpkg-deb --build "${DEBROOT}" "dist/${APP_NAME}-Linux-amd64.deb"
 
           cd dist
           tar -czf "${APP_NAME}-Linux.tar.gz" "${APP_NAME}"
@@ -104,6 +129,7 @@ jobs:
           path: |
             dist/VPXmerge_${{ github.ref_name }}-Linux.tar.gz
             dist/VPXmerge_${{ github.ref_name }}-Linux.AppImage
+            dist/VPXmerge_${{ github.ref_name }}-Linux-amd64.deb
 
       - name: Upload artifact (Windows)
         if: runner.os == 'Windows'
@@ -129,4 +155,5 @@ jobs:
             release-assets/**/*.zip
             release-assets/**/*.tar.gz
             release-assets/**/*.AppImage
+            release-assets/**/*.deb
           generate_release_notes: true
