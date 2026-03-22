@@ -39,58 +39,51 @@ Screenshots
 
 ## 🚀 Installation
 
-### Prerequisites
+### Option A: Use Prebuilt Release (Recommended)
 
-- **Python 3.8 or higher** ([Download Python](https://www.python.org/downloads/))
+For **v1.81** release packages, you do **not** need Python or pip dependencies.
+
+Download from [GitHub Releases](https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/releases):
+
+- **Windows:** `VPXmerge_v1.81-Windows.zip`
+- **macOS:** `VPXmerge_v1.81-macOS.zip`
+- **Linux x64:** `VPXmerge_v1.81-linux-amd64.run`
+- **Linux ARM64:** `VPXmerge_v1.81-linux-arm64.run`
+
+Linux quick launch:
+```bash
+chmod +x VPXmerge_v1.81-linux-*.run
+./VPXmerge_v1.81-linux-*.run
+```
+
+### Option B: Run From Source (Python Required)
+
+Use this only if you want to run/edit source directly.
+
+Prerequisites:
+- **Python 3.8+**
 - **Windows, macOS, or Linux**
 
-### Step 1: Install Python Dependencies
-
-Open Terminal (macOS/Linux) or Command Prompt (Windows) and run:
-
+Install dependencies:
 ```bash
 # Windows
 pip install tkinterdnd2 pillow olefile
 
-# macOS/Linux  
+# macOS/Linux
 pip3 install Pillow olefile tkinterdnd2 --break-system-packages
 ```
 
-**Required Packages:**
-- `tkinterdnd2` - Drag & drop support
-- `pillow` (PIL) - Image preview thumbnails
-- `tkinter` - GUI framework (usually included with Python)
-- `olefile` - GUI used to read and extract data from the .VPX
-
-
-**Note:** `tkinter` is included with Python by default. If missing:
+If `tkinter` is missing:
 - **Ubuntu/Debian:** `sudo apt-get install python3-tk`
-- **macOS:** Included with official Python installer
-- **Windows:** Included with Python installer<br>
- **Optional:**
-- Internet connection for VPinMAME media database (preview images)
+- **macOS/Windows:** included with standard Python installers
 
-### Step 2: Download VPXmerge
-
-**Option A: Clone Repository**
+Get source:
 ```bash
 git clone https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool.git
 cd VPX-Standalone-Merging-Tool
 ```
 
-**Option B: Download ZIP**
-1. Click the green **Code** button above
-2. Select **Download ZIP**
-3. Extract to your preferred location
-
-### Step 3: (Optional) Add Database
-
-Place these files in the same directory as `VPXmerge.py`:
-
-- **`pinballxdatabase.csv`** — Enhanced preview database ([VPS Database](https://virtualpinballspreadsheet.github.io/vps-db/))
-
-### Step 4: Launch
-
+Launch from source:
 ```bash
 # Windows
 python VPXmerge.py
@@ -98,6 +91,10 @@ python VPXmerge.py
 # macOS/Linux
 python3 VPXmerge.py
 ```
+
+Optional database (for enhanced preview matching):
+- Place `pinballxdatabase.csv` next to `VPXmerge.py`  
+  Source: [VPS Database](https://virtualpinballspreadsheet.github.io/vps-db/)
 
 ---
 
