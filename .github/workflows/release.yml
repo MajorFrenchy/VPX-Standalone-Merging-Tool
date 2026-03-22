@@ -66,7 +66,6 @@ jobs:
           REAL_BIN="${APP_DIR}/${APP_NAME}.bin"
           INTERNAL_DIR="${APP_DIR}/_internal"
           PILLOW_DIR="${INTERNAL_DIR}/pillow.libs"
-          TAR_NAME="${APP_NAME}-linux-${ARCH}.tar.gz"
           RUN_NAME="${APP_NAME}-linux-${ARCH}.run"
 
           mv "${BIN_PATH}" "${REAL_BIN}"
@@ -95,6 +94,7 @@ jobs:
           chmod +x "${BIN_PATH}" "${REAL_BIN}"
 
           cd dist
+          TAR_NAME="${APP_NAME}-linux-${ARCH}.tar.gz"
           tar -czf "${TAR_NAME}" "${APP_NAME}"
 
           cat > "${RUN_NAME}" <<EOF
@@ -139,9 +139,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: VPXmerge-${{ github.ref_name }}-Linux-${{ matrix.linux_arch }}
-          path: |
-            dist/VPXmerge_${{ github.ref_name }}-linux-${{ matrix.linux_arch }}.tar.gz
-            dist/VPXmerge_${{ github.ref_name }}-linux-${{ matrix.linux_arch }}.run
+          path: dist/VPXmerge_${{ github.ref_name }}-linux-${{ matrix.linux_arch }}.run
 
       - name: Upload artifact (Windows)
         if: runner.os == 'Windows'
@@ -165,6 +163,5 @@ jobs:
         with:
           files: |
             release-assets/**/*.zip
-            release-assets/**/*.tar.gz
             release-assets/**/*.run
           generate_release_notes: true
