@@ -246,6 +246,7 @@ chmod +x VPXmerge_v1.81-linux-*.run
 - Wait for "✓ Ready" status (database loading)
 - Check internet connection (initial download)
 - Add custom mapping if needed
+- The image is not in the media database. 
 
 ### "Media not copying"
 - ☑️ "Include Media Files" enabled?
