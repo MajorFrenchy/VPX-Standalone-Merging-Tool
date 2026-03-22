@@ -6,7 +6,7 @@ VPXmerge streamlines your VPX table collection by automating exports, script fix
 
 ## Latest Release
 
-- **v1.7.7**: Added Linux `amd64` + `arm64` release artifacts (`.deb`, `.AppImage`, `.tar.gz`).
+- **v1.8**: Linux release packaging now ships as a portable `.run` executable plus `.tar.gz`, with the broken `.deb` and `.AppImage` artifacts removed.
 - Full release history: [GitHub Releases](https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/releases)
 
 [![Watch the video](https://img.youtube.com/vi/pPD1GJQKCT8/maxresdefault.jpg)](https://www.youtube.com/watch?v=pPD1GJQKCT8)

@@ -19,12 +19,8 @@ jobs:
           - os: windows-latest
           - os: ubuntu-latest
             linux_arch: amd64
-            appimage_arch: x86_64
-            appimagetool_url: https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           - os: ubuntu-24.04-arm
             linux_arch: arm64
-            appimage_arch: aarch64
-            appimagetool_url: https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-aarch64.AppImage
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -40,7 +36,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-tk tk-dev desktop-file-utils dpkg-dev
+          sudo apt-get install -y python3-tk tk-dev
 
       - name: Install Python dependencies
         run: |
@@ -64,60 +60,65 @@ jobs:
         run: |
           APP_VER="${GITHUB_REF_NAME#v}"
           APP_NAME="VPXmerge_v${APP_VER}"
-          APPDIR="${APP_NAME}.AppDir"
-          DEBROOT="${APP_NAME}_debroot"
-          DEB_ARCH="${{ matrix.linux_arch }}"
-          APPIMAGE_ARCH="${{ matrix.appimage_arch }}"
+          ARCH="${{ matrix.linux_arch }}"
+          APP_DIR="dist/${APP_NAME}"
+          BIN_PATH="${APP_DIR}/${APP_NAME}"
+          REAL_BIN="${APP_DIR}/${APP_NAME}.bin"
+          INTERNAL_DIR="${APP_DIR}/_internal"
+          PILLOW_DIR="${INTERNAL_DIR}/pillow.libs"
+          TAR_NAME="${APP_NAME}-linux-${ARCH}.tar.gz"
+          RUN_NAME="${APP_NAME}-linux-${ARCH}.run"
 
-          rm -rf "${APPDIR}"
-          mkdir -p "${APPDIR}/usr/bin"
+          mv "${BIN_PATH}" "${REAL_BIN}"
 
-          cp "dist/${APP_NAME}/${APP_NAME}" "${APPDIR}/usr/bin/${APP_NAME}"
-          chmod +x "${APPDIR}/usr/bin/${APP_NAME}"
+          cat > "${BIN_PATH}" <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
 
-          printf '%s\n' \
-            '[Desktop Entry]' \
-            'Type=Application' \
-            "Name=${APP_NAME}" \
-            "Exec=${APP_NAME}" \
-            "Icon=${APP_NAME}" \
-            'Categories=Utility;' \
-            'Terminal=false' > "${APPDIR}/${APP_NAME}.desktop"
+          APP_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+          INTERNAL_DIR="$APP_DIR/_internal"
+          PILLOW_DIR="$INTERNAL_DIR/pillow.libs"
+          REAL_BIN="$APP_DIR/__REAL_BIN__"
 
-          python -c "from PIL import Image, ImageDraw; img=Image.new('RGBA',(256,256),(28,32,45,255)); d=ImageDraw.Draw(img); d.rectangle((24,24,232,232), outline=(0,200,255,255), width=8); d.text((72,108),'VPX', fill=(0,200,255,255)); img.save('icon.png')"
+          if [ -d "$PILLOW_DIR" ]; then
+            XCB_CANDIDATE="$(find "$PILLOW_DIR" -maxdepth 1 -name 'libxcb-*.so.1*' | head -n 1)"
+            if [ -n "${XCB_CANDIDATE:-}" ] && [ ! -e "$INTERNAL_DIR/libxcb.so.1" ]; then
+              ln -s "pillow.libs/$(basename "$XCB_CANDIDATE")" "$INTERNAL_DIR/libxcb.so.1"
+            fi
+          fi
 
-          cp icon.png "${APPDIR}/${APP_NAME}.png"
+          export LD_LIBRARY_PATH="$INTERNAL_DIR:$PILLOW_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          exec "$REAL_BIN" "$@"
+          EOF
 
-          curl -L -o appimagetool.AppImage "${{ matrix.appimagetool_url }}"
-          chmod +x appimagetool.AppImage
-          APPIMAGE_EXTRACT_AND_RUN=1 ARCH="${APPIMAGE_ARCH}" ./appimagetool.AppImage "${APPDIR}" "dist/${APP_NAME}-Linux-${DEB_ARCH}.AppImage"
-
-          # Build .deb installer for easy double-click install.
-          rm -rf "${DEBROOT}"
-          mkdir -p "${DEBROOT}/DEBIAN" "${DEBROOT}/usr/local/bin" "${DEBROOT}/usr/share/applications" "${DEBROOT}/usr/share/pixmaps"
-          cp "dist/${APP_NAME}/${APP_NAME}" "${DEBROOT}/usr/local/bin/vpxmerge"
-          chmod 755 "${DEBROOT}/usr/local/bin/vpxmerge"
-          cp icon.png "${DEBROOT}/usr/share/pixmaps/vpxmerge.png"
-          printf '%s\n' \
-            '[Desktop Entry]' \
-            'Type=Application' \
-            'Name=VPXmerge' \
-            'Exec=/usr/local/bin/vpxmerge' \
-            'Icon=vpxmerge' \
-            'Categories=Utility;' \
-            'Terminal=false' > "${DEBROOT}/usr/share/applications/vpxmerge.desktop"
-          printf '%s\n' \
-            'Package: vpxmerge' \
-            "Version: ${APP_VER}" \
-            'Section: utils' \
-            'Priority: optional' \
-            "Architecture: ${DEB_ARCH}" \
-            'Maintainer: VPXmerge <noreply@example.com>' \
-            'Description: VPX Standalone Merging Tool' > "${DEBROOT}/DEBIAN/control"
-          dpkg-deb --build "${DEBROOT}" "dist/${APP_NAME}-Linux-${DEB_ARCH}.deb"
+          sed -i "s|__REAL_BIN__|${APP_NAME}.bin|g" "${BIN_PATH}"
+          chmod +x "${BIN_PATH}" "${REAL_BIN}"
 
           cd dist
-          tar -czf "${APP_NAME}-Linux-${DEB_ARCH}.tar.gz" "${APP_NAME}"
+          tar -czf "${TAR_NAME}" "${APP_NAME}"
+
+          cat > "${RUN_NAME}" <<EOF
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          SELF_PATH="\$(readlink -f "\$0")"
+          PAYLOAD_LINE="\$(awk '/^__ARCHIVE_BELOW__$/ { print NR + 1; exit 0; }' "\$SELF_PATH")"
+
+          if [ -z "\$PAYLOAD_LINE" ]; then
+            printf 'Payload marker not found.\n' >&2
+            exit 1
+          fi
+
+          INSTALL_BASE="\${XDG_DATA_HOME:-\$HOME/.local/share}"
+          INSTALL_DIR="\$INSTALL_BASE/${APP_NAME}"
+          mkdir -p "\$INSTALL_BASE"
+          tail -n "+\$PAYLOAD_LINE" "\$SELF_PATH" | tar -xz -C "\$INSTALL_BASE"
+          exec "\$INSTALL_DIR/${APP_NAME}" "\$@"
+          __ARCHIVE_BELOW__
+          EOF
+
+          cat "${TAR_NAME}" >> "${RUN_NAME}"
+          chmod +x "${RUN_NAME}"
 
       - name: Package artifact (Windows)
         if: runner.os == 'Windows'
@@ -139,9 +140,8 @@ jobs:
         with:
           name: VPXmerge-${{ github.ref_name }}-Linux-${{ matrix.linux_arch }}
           path: |
-            dist/VPXmerge_${{ github.ref_name }}-Linux-${{ matrix.linux_arch }}.tar.gz
-            dist/VPXmerge_${{ github.ref_name }}-Linux-${{ matrix.linux_arch }}.AppImage
-            dist/VPXmerge_${{ github.ref_name }}-Linux-${{ matrix.linux_arch }}.deb
+            dist/VPXmerge_${{ github.ref_name }}-linux-${{ matrix.linux_arch }}.tar.gz
+            dist/VPXmerge_${{ github.ref_name }}-linux-${{ matrix.linux_arch }}.run
 
       - name: Upload artifact (Windows)
         if: runner.os == 'Windows'
@@ -166,6 +166,5 @@ jobs:
           files: |
             release-assets/**/*.zip
             release-assets/**/*.tar.gz
-            release-assets/**/*.AppImage
-            release-assets/**/*.deb
+            release-assets/**/*.run
           generate_release_notes: true
