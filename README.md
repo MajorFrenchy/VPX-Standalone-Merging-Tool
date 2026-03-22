@@ -16,7 +16,6 @@ YOUTUBE VIDEO
 ## ✨ Features at a Glance
 
 - 🎯 **One-Click Full Export** — VPX + VBS + Backglass + PUP + Media
-- 🔧 **Auto-Fix Scripts** — WScript.Shell, RegRead, deprecated B2S properties
 - 🎬 **Smart Media Manager** — Fuzzy matching for POPMedia files
 - 🖼️ **Live Table Previews** — See table artwork while you work
 - 📦 **Batch Processing** — Handle entire collections at once
@@ -76,7 +75,6 @@ Optional database (for enhanced preview matching):
 |--------|----------|
 | 🎯 **MAKE MAGIC HAPPEN** | Full export: VPX + backglass + PUP + media + patches |
 | 📝 **EXTRACT VBS ONLY** | Save embedded scripts without copying tables |
-| 🔧 **FIX SCRIPT** | Auto-patch VPX scripts and save fixed version |
 | 🗑️ **CLEAR** | Reset and start over |
 
 ---
@@ -100,42 +98,6 @@ Target/TableName/
     ├── flyer.png
     └── media_log.ini
 ```
-
----
-
-### 🔧 Auto-Fix Script Issues
-
-**One-Click Fixes:**
-
-✅ **WScript.Shell Removal** (any variable name: `wsh`, `WshShell`, etc.)
-```vbscript
-' Before
-Set wsh = CreateObject("WScript.Shell")
-
-' After  
-' Set wsh = CreateObject("WScript.Shell") ' REMOVED
-```
-
-✅ **GetNVramPath() → Local Paths**
-```vbscript
-Function GetNVramPath()
-    GetNVramPath = ".\pinmame\nvram\"
-End Function
-```
-
-✅ **RegRead Stubbing**
-```vbscript
-' nvramPath = wsh.RegRead(...) ' REMOVED
-nvramPath = ".\pinmame\nvram\" ' Auto-fixed
-```
-
-✅ **Deprecated B2S Properties**
-```vbscript
-' .ShowDMDOnly = 1 ' REMOVED - deprecated
-' .ShowFrame = 0   ' REMOVED - deprecated  
-```
-
-✅ **Problematic COM Objects** (SAPI.SpVoice, WMPlayer.OCX)
 
 ---
 
@@ -220,16 +182,6 @@ Gilligan's Island = gilligans_island
 # For script analysis/backup
 # Click "EXTRACT VBS ONLY" instead
 ```
-
-### Fix Problematic Table
-
-```bash
-# Drag single VPX
-# Click "FIX SCRIPT"
-# Fixed .vbs saved alongside VPX
-```
-
----
 
 ## 🐛 Troubleshooting
 
