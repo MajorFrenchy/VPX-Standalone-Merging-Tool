@@ -6,6 +6,7 @@ VPXmerge streamlines your VPX table collection by automating exports, script fix
 
 ## Release Notes
 
+- v1.7.7: Added Linux amd64 + arm64 release artifacts (`.deb`, `.AppImage`, `.tar.gz`).
 - v1.7.6: Added Linux `.deb` installer artifact for easier double-click install.
 - v1.7.5: Fixed Linux AppImage build on GitHub Actions (no FUSE dependency during CI build).
 - v1.7.4: Fixed GitHub workflow YAML parsing and Linux AppImage packaging flow.
