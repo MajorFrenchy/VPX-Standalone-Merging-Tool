@@ -4,24 +4,10 @@
 
 VPXmerge streamlines your VPX table collection by automating exports, script fixes, media organization, and asset detection — all with an intuitive drag-and-drop interface.
 
-## Release Notes
+## Latest Release
 
-- v1.7.7: Added Linux amd64 + arm64 release artifacts (`.deb`, `.AppImage`, `.tar.gz`).
-- v1.7.6: Added Linux `.deb` installer artifact for easier double-click install.
-- v1.7.5: Fixed Linux AppImage build on GitHub Actions (no FUSE dependency during CI build).
-- v1.7.4: Fixed GitHub workflow YAML parsing and Linux AppImage packaging flow.
-- v1.7.3: Added Linux AppImage release artifact for double-click launching.
-- v1.7.2: Fixed Windows packaging in GitHub Actions release workflow.
-- v1.7.1: GitHub release artifacts now use clear platform names for macOS, Linux, and Windows.
-- v1.7: Serum shown separately from AltColor, POV `tablename.ini` name shown in auditor, title cleanup.
-- v1.6: Serum .Crz detection + copy to table/serum/
-- v1.5: Stronger PuP folder logic / Copy table.ini
-- v1.4: added cfg and nvram detection.
-
-## Versions
-
-- Latest version stays on main page: `VPXmerge.py`
-- Older versions are archived in `versions/`
+- **v1.7.7**: Added Linux `amd64` + `arm64` release artifacts (`.deb`, `.AppImage`, `.tar.gz`).
+- Full release history: [GitHub Releases](https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/releases)
 
 [![Watch the video](https://img.youtube.com/vi/pPD1GJQKCT8/maxresdefault.jpg)](https://www.youtube.com/watch?v=pPD1GJQKCT8)
 YOUTUBE VIDEO
