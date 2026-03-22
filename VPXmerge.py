@@ -4320,6 +4320,30 @@ class VPXStandaloneMergingUtility:
         for candidate in candidates:
             if candidate in self.vpsdb_lookup:
                 return self.vpsdb_lookup[candidate]
+
+        # Strong token-subset fallback:
+        # If all meaningful table words are present in a VPS key as whole words,
+        # accept the closest match even when classic overlap score is below 50%.
+        stop_words = {
+            "the", "and", "or", "table", "pinball", "vpx", "vpw", "mod",
+            "le", "se", "pro", "limited", "edition"
+        }
+        table_words = set(nc.split())
+        strong_words = {w for w in table_words if len(w) >= 4 and w not in stop_words}
+        if strong_words:
+            subset_candidates = []
+            for lk, lid in self.vpsdb_lookup.items():
+                db_words = set(lk.split())
+                if strong_words.issubset(db_words):
+                    # Prefer the key with the fewest extra words.
+                    extra_words = len(db_words) - len(strong_words)
+                    subset_candidates.append((extra_words, len(lk), lid))
+            if subset_candidates:
+                subset_candidates.sort(key=lambda x: (x[0], x[1]))
+                best_extra, _, best_id = subset_candidates[0]
+                # Keep this permissive but bounded to avoid unrelated broad matches.
+                if best_extra <= 3:
+                    return best_id
         
         # Fuzzy matching fallback: word-based similarity (same as preview)
         best_id, best_score = None, 0.0
