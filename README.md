@@ -6,7 +6,7 @@ VPXmerge streamlines your VPX table collection by automating exports, script fix
 
 ## Latest Release
 
-- **v1.8**: Linux release packaging now ships as portable `.run` executables only (`amd64` and `arm64`).
+- **v1.81**: `CREATE CLEAN .VBS` now only creates `.vbs` files and skips all other copy/detection actions.
 - Full release history: [GitHub Releases](https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/releases)
 
 [![Watch the video](https://img.youtube.com/vi/pPD1GJQKCT8/maxresdefault.jpg)](https://www.youtube.com/watch?v=pPD1GJQKCT8)

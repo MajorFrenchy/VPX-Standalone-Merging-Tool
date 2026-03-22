@@ -6,7 +6,7 @@ from PIL import Image, ImageTk
 import io
 import difflib
 
-VERSION = "1.8"
+VERSION = "1.81"
 
 # ── Media fuzzy matching helpers ──────────────────────────────────────────────
 _MEDIA_NOISE = {
@@ -3796,7 +3796,7 @@ class VPXStandaloneMergingUtility:
                     return raw.decode('utf-16-be', errors='ignore').encode('latin-1', errors='ignore')
                 elif raw[:3] == b'\xef\xbb\xbf':
                     return raw[3:]  # strip UTF-8 BOM, rest is plain ASCII/latin-1
-                return raw  # plain ASCII or latin-1, return as-is
+                return self._sanitize_vbs_bytes(raw)  # plain ASCII or latin-1, sanitized
             if olefile.isOleFile(path):
                 with olefile.OleFileIO(path) as ole:
                     for s in ole.listdir():
@@ -3827,15 +3827,32 @@ class VPXStandaloneMergingUtility:
                             else:
                                 start = 0
                             raw = d[start:]
-                            # Strip OLE stream padding and ENDB footer from the end
-                            endb = raw.rfind(b'ENDB')
-                            if endb != -1:
-                                raw = raw[:endb].rstrip(b'\x00\x04')
-                            else:
-                                raw = raw.rstrip(b'\x00')
-                            return raw
+                            return self._sanitize_vbs_bytes(raw)
         except: pass
         return None
+
+    def _sanitize_vbs_bytes(self, raw):
+        """Remove OLE/script trailer markers and binary padding from extracted VBS bytes."""
+        if not raw:
+            return raw
+
+        cleaned = raw
+
+        # Known trailer markers seen in some VPX streams (ex: TLCK/ENDB).
+        # Cut at the last marker only if it appears very near EOF.
+        for marker in (b'ENDB', b'TLCK'):
+            pos = cleaned.rfind(marker)
+            if pos != -1 and (len(cleaned) - pos) <= 128:
+                cleaned = cleaned[:pos]
+
+        # Remove trailing NUL/padding/control bytes that are not valid script text.
+        cleaned = cleaned.rstrip(b'\x00\x01\x02\x03\x04\x1a')
+
+        # Drop any remaining trailing low control chars except CR/LF/TAB.
+        while cleaned and cleaned[-1] < 0x20 and cleaned[-1] not in (0x09, 0x0a, 0x0d):
+            cleaned = cleaned[:-1]
+
+        return cleaned
 
     def find_github_patch(self, table_name):
         """Search GitHub repo for matching patch file using fuzzy matching"""
@@ -4421,6 +4438,21 @@ class VPXStandaloneMergingUtility:
             
             # Update preview with table info
             self.root.after(0, lambda tn=v_base, rn=rom_for_preview: self.update_preview(tn, rn))
+
+            # VBS-only mode: write clean VBS and skip every other detection/copy action.
+            if mode == "vbs":
+                os.makedirs(table_dest, exist_ok=True)
+                vbs_path = os.path.join(table_dest, f"{v_base}.vbs")
+                if script_raw and len(script_raw) > 0:
+                    raw_out = script_raw if isinstance(script_raw, bytes) else script.encode('latin-1', errors='replace')
+                    raw_out = raw_out.replace(b'\r\n', b'\n').replace(b'\r', b'\n')
+                    with open(vbs_path, "wb") as vf:
+                        vf.write(raw_out)
+                    self.log_audit(f"VBS CREATED: {v_base}.vbs ({len(raw_out):,} bytes)", "found")
+                    self.file_stats['vbs_files'] += 1
+                else:
+                    self.log_audit(f"VBS FAILED: could not extract script from {fname}", "missing")
+                continue
             
             # Visual separator for table
             if mode == "scan": 
@@ -5093,19 +5125,6 @@ class VPXStandaloneMergingUtility:
                         self.log_audit("10-PATCH: LOOKUP DISABLED", "missing")
                     elif mode == "patch":
                         self.log_audit("10-PATCH: LOOKUP IS DISABLED (Enable checkbox)", "missing")
-
-                # VBS Creator
-                if mode == "vbs":
-                    vbs_path = os.path.join(table_dest, f"{v_base}.vbs")
-                    if script_raw and len(script_raw) > 0:
-                        raw_out = script_raw if isinstance(script_raw, bytes) else script.encode('latin-1', errors='replace')
-                        raw_out = raw_out.replace(b'\r\n', b'\n').replace(b'\r', b'\n')
-                        with open(vbs_path, "wb") as vf:
-                            vf.write(raw_out)
-                        self.log_audit(f"VBS CREATED: {v_base}.vbs ({len(raw_out):,} bytes)", "found")
-                        self.file_stats['vbs_files'] += 1
-                    else:
-                        self.log_audit(f"VBS FAILED: could not extract script from {fname}", "missing")
 
                 # Script Auto-Fixer
                 if mode == "fix":
