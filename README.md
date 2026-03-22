@@ -39,9 +39,7 @@ Screenshots
 
 ## 🚀 Installation
 
-### Option A: Use Prebuilt Release (Recommended)
-
-For **v1.81** release packages, you do **not** need Python or pip dependencies.
+Use prebuilt release packages. No extra runtime setup is required.
 
 Download from [GitHub Releases](https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/releases):
 
@@ -55,52 +53,15 @@ Linux quick launch:
 chmod +x VPXmerge_v1.81-linux-*.run
 ./VPXmerge_v1.81-linux-*.run
 ```
-
-### Option B: Run From Source (Python Required)
-
-Use this only if you want to run/edit source directly.
-
-Prerequisites:
-- **Python 3.8+**
-- **Windows, macOS, or Linux**
-
-Install dependencies:
-```bash
-# Windows
-pip install tkinterdnd2 pillow olefile
-
-# macOS/Linux
-pip3 install Pillow olefile tkinterdnd2 --break-system-packages
-```
-
-If `tkinter` is missing:
-- **Ubuntu/Debian:** `sudo apt-get install python3-tk`
-- **macOS/Windows:** included with standard Python installers
-
-Get source:
-```bash
-git clone https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool.git
-cd VPX-Standalone-Merging-Tool
-```
-
-Launch from source:
-```bash
-# Windows
-python VPXmerge.py
-
-# macOS/Linux
-python3 VPXmerge.py
-```
-
 Optional database (for enhanced preview matching):
-- Place `pinballxdatabase.csv` next to `VPXmerge.py`  
+- Place `pinballxdatabase.csv` next to the VPXmerge executable/app  
   Source: [VPS Database](https://virtualpinballspreadsheet.github.io/vps-db/)
 
 ---
 
 ## ⚡ Quick Start
 
-1. **Launch VPXmerge** → Run `python VPXmerge.py`
+1. **Launch VPXmerge** → Open the app/executable for your platform
 2. **Set Export Target** → Click **Browse** to choose output folder
 3. **Add Tables** → Drag VPX files or folders into the drop zone
 4. **Preview** → See table images and detected assets
@@ -246,8 +207,8 @@ Gilligan's Island = gilligans_island
 ### Basic Export
 
 ```bash
-python VPXmerge.py
-# 1. Browse → Select target folder
+# 1. Launch VPXmerge app
+# 2. Browse → Select target folder
 # 2. Drag VPX files
 # 3. Enable "Include Media Files"
 # 4. Click MAKE MAGIC HAPPEN
@@ -272,19 +233,14 @@ python VPXmerge.py
 
 ## 🐛 Troubleshooting
 
-### "Module not found: tkinter"
+### "App does not start"
+- On Linux, make the `.run` file executable, then launch it:
 ```bash
-# Ubuntu/Debian
-sudo apt-get install python3-tk
-
-# macOS (reinstall Python from python.org)
-# Windows (reinstall with "tcl/tk and IDLE" checked)
+chmod +x VPXmerge_v1.81-linux-*.run
+./VPXmerge_v1.81-linux-*.run
 ```
-
-### "Module not found: PIL"
-```bash
-pip install Pillow --break-system-packages
-```
+- On macOS, open the extracted app bundle.
+- On Windows, run `VPXmerge.exe` from the extracted zip folder.
 
 ### "No table previews"
 - Wait for "✓ Ready" status (database loading)
