@@ -3360,7 +3360,7 @@ class VPXStandaloneMergingUtility:
             self.preview_rom_name.config(text=f"ROM: {rom_name}" if rom_name else "")
             
             # Check for VPS ID and show/hide globe button
-            vps_id = self._lookup_vps_id(table_name)
+            vps_id = self._lookup_vps_id(table_name, rom_name)
             if vps_id:
                 self.current_vps_url = f"https://virtualpinballspreadsheet.github.io/tables?game={vps_id}"
                 self.btn_vps_link.pack(side="left", padx=(8, 0))
@@ -3448,6 +3448,11 @@ class VPXStandaloneMergingUtility:
         nc    = normalize(clean)
         
         candidates = [raw.lower(), nr, word_sorted(nr), clean.lower(), nc, word_sorted(nc)]
+        if rom_name:
+            rr = rom_name.strip()
+            if rr:
+                nr_rom = normalize(rr)
+                candidates.extend([rr.lower(), nr_rom, word_sorted(nr_rom)])
         
         # Try hyphenated variations (Spider-Man ↔ Spiderman)
         if '-' in raw:
@@ -4298,7 +4303,7 @@ class VPXStandaloneMergingUtility:
         except Exception:
             pass
 
-    def _lookup_vps_id(self, table_name):
+    def _lookup_vps_id(self, table_name, rom_name=None):
         """Look up VPS Table ID from table name using fuzzy matching"""
         if not hasattr(self, 'vpsdb_lookup') or not self.vpsdb_lookup:
             return None
@@ -4313,8 +4318,12 @@ class VPXStandaloneMergingUtility:
         nr = normalize(raw)
         clean = re.sub(r"\s*\(.*?\)", "", raw).strip()
         nc = normalize(clean)
-        
+
         candidates = [raw.lower(), nr, clean.lower(), nc]
+        if rom_name:
+            rom_raw = rom_name.strip()
+            if rom_raw:
+                candidates.extend([rom_raw.lower(), normalize(rom_raw)])
         
         # Try exact match first
         for candidate in candidates:
@@ -4482,7 +4491,7 @@ class VPXStandaloneMergingUtility:
             if mode == "scan": 
                 self.log_separator("double")
                 # Look up VPS ID
-                vps_id = self._lookup_vps_id(v_base)
+                vps_id = self._lookup_vps_id(v_base, rom_for_preview)
                 if vps_id:
                     self.log_audit(f"  Table: {fname} ( VPS Table ID: {vps_id} )", "table_name")
                 else:
@@ -4509,7 +4518,7 @@ class VPXStandaloneMergingUtility:
             elif mode == "patch": 
                 self.log_separator("double")
                 # Look up VPS ID
-                vps_id = self._lookup_vps_id(v_base)
+                vps_id = self._lookup_vps_id(v_base, rom_for_preview)
                 if vps_id:
                     self.log_audit(f"  Table: {fname} ( VPS Table ID: {vps_id} )", "table_name")
                 else:

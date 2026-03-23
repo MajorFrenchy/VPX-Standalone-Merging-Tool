@@ -6,7 +6,7 @@ VPXmerge streamlines your VPX table collection by automating exports, script fix
 
 ## Latest Release
 
-- **v1.82**: `CREATE CLEAN .VBS` now only creates `.vbs` files and skips all other copy/detection actions.
+- **v1.82**: `CREATE CLEAN .VBS` now only creates `.vbs` files and skips all other copy/detection actions. Better image preview detection.
 - Full release history: [GitHub Releases](https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/releases)
 
 [![Watch the video](https://img.youtube.com/vi/pPD1GJQKCT8/maxresdefault.jpg)](https://www.youtube.com/watch?v=pPD1GJQKCT8)
