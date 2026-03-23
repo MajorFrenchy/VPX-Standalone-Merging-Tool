@@ -6,7 +6,7 @@ from PIL import Image, ImageTk
 import io
 import difflib
 
-VERSION = "1.82"
+VERSION = "1.83"
 
 # ── Media fuzzy matching helpers ──────────────────────────────────────────────
 _MEDIA_NOISE = {
