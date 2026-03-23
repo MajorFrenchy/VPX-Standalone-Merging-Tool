@@ -250,4 +250,4 @@ Support me
 If you find this utility useful and would like to support its development: You can con tribute in 2 ways, Getting the VPC Chat Discord server a Boost :" https://discord.com/invite/virtual-pinball-chat-652274650524418078
 or by contributing to the VPC Chat Patreon: https://www.patreon.com/c/vpchat
 
-https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/raw/main/screenshots/Screenshot%2002.jpg
+
