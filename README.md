@@ -6,7 +6,7 @@ VPXmerge streamlines your VPX table collection by automating exports, script fix
 
 ## Latest Release
 
-- **v1.81**: `CREATE CLEAN .VBS` now only creates `.vbs` files and skips all other copy/detection actions.
+- **v1.82**: `CREATE CLEAN .VBS` now only creates `.vbs` files and skips all other copy/detection actions.
 - Full release history: [GitHub Releases](https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/releases)
 
 [![Watch the video](https://img.youtube.com/vi/pPD1GJQKCT8/maxresdefault.jpg)](https://www.youtube.com/watch?v=pPD1GJQKCT8)
@@ -42,15 +42,15 @@ Use prebuilt release packages. No extra runtime setup is required.
 
 Download from [GitHub Releases](https://github.com/MajorFrenchy/VPX-Standalone-Merging-Tool/releases):
 
-- **Windows:** `VPXmerge_v1.81-Windows.zip`
-- **macOS:** `VPXmerge_v1.81-macOS.zip`
-- **Linux x64:** `VPXmerge_v1.81-linux-amd64.run`
-- **Linux ARM64:** `VPXmerge_v1.81-linux-arm64.run`
+- **Windows:** `VPXmerge_v1.82-Windows.zip`
+- **macOS:** `VPXmerge_v1.82-macOS.zip`
+- **Linux x64:** `VPXmerge_v1.82-linux-amd64.run`
+- **Linux ARM64:** `VPXmerge_v1.82-linux-arm64.run`
 
 Linux quick launch:
 ```bash
-chmod +x VPXmerge_v1.81-linux-*.run
-./VPXmerge_v1.81-linux-*.run
+chmod +x VPXmerge_v1.82-linux-*.run
+./VPXmerge_v1.82-linux-*.run
 ```
 Optional database (for enhanced preview matching):
 - Place `pinballxdatabase.csv` next to the VPXmerge executable/app  
@@ -188,8 +188,8 @@ Gilligan's Island = gilligans_island
 ### "App does not start"
 - On Linux, make the `.run` file executable, then launch it:
 ```bash
-chmod +x VPXmerge_v1.81-linux-*.run
-./VPXmerge_v1.81-linux-*.run
+chmod +x VPXmerge_v1.82-linux-*.run
+./VPXmerge_v1.82-linux-*.run
 ```
 - On macOS, open the extracted app bundle.
 - On Windows, run `VPXmerge.exe` from the extracted zip folder.
