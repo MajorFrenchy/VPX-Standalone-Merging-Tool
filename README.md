@@ -231,7 +231,6 @@ MIT License - Free to use, modify, and distribute.
 ## 🙏 Acknowledgments
 
 **Created by:** Major Frenchy  
-**Powered by:** Claude (Anthropic)
 
 **Special Thanks:**
 - * jsm174 for the VPX standalone scripts repository and VPX Standalone
