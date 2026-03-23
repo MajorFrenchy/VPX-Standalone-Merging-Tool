@@ -92,7 +92,7 @@ Target/TableName/
 ├── PUPVideos/                 # PinUP Player videos
 └── medias/                    # Organized media files
     ├── table.mp4
-    ├── fulldmd.mp4
+    ├── dmd.mp4
     ├── wheel.png
     ├── bg.mp4
     ├── flyer.png
@@ -108,7 +108,7 @@ Target/TableName/
 | POPMedia Folder | Renamed To | Formats |
 |----------------|------------|---------|
 | Playfield | `table.mp4` | .mp4, .avi, .f4v |
-| Menu | `fulldmd.mp4` | .mp4, .avi, .f4v |
+| Menu | `dmd.mp4` | .mp4, .avi, .f4v |
 | Loading | `loading.mp4` | .mp4, .avi, .f4v |
 | Gameinfo | `flyer.png` | .png, .jpg |
 | GameHelp | `rules.png` | .png, .jpg |

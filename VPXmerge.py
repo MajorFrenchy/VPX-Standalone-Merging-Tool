@@ -4234,7 +4234,7 @@ class VPXStandaloneMergingUtility:
 
         media_mappings = [
             ("Playfield",    [".mp4", ".avi", ".f4v"],   "table"),
-            ("Menu",         [".mp4", ".avi", ".f4v"],   "fulldmd"),
+            ("Menu",         [".mp4", ".avi", ".f4v"],   "dmd"),
             ("Loading",      [".mp4", ".avi", ".f4v"],   "loading"),
             ("Gameinfo",     [".png", ".jpg", ".jpeg"],  "flyer"),
             ("GameHelp",     [".png", ".jpg", ".jpeg"],  "rules"),
