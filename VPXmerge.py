@@ -2925,6 +2925,10 @@ class VPXStandaloneMergingUtility:
                   bg="#2a0010", fg=RED, font=("Courier", 11, "bold"),
                   relief="flat", bd=0, padx=12, pady=2, cursor="hand2",
                   activebackground="#3a0018", activeforeground=RED).pack(side="right", padx=6)
+        tk.Button(audit_hdr, text="＋  ADD FILES", command=self.add_files_dialog,
+                  bg="#00330f", fg=GREEN, font=("Courier", 11, "bold"),
+                  relief="flat", bd=0, padx=12, pady=2, cursor="hand2",
+                  activebackground="#00471a", activeforeground=GREEN).pack(side="right", padx=6)
 
         self.audit_list = tk.Text(audit_inner, bg=PANEL, fg="#c0cce8",
                                   font=("Menlo", 13), state="disabled",
@@ -2957,6 +2961,7 @@ class VPXStandaloneMergingUtility:
         self.drop_hint.place(relx=0.5, rely=0.5, anchor="center")
         self.drop_hint.drop_target_register(DND_FILES)
         self.drop_hint.dnd_bind("<<Drop>>", self.handle_drop)
+        self.drop_hint.bind("<Button-1>", lambda e: self.add_files_dialog())
 
         # Preview panel
         prev_outer = tk.Frame(main_container, bg=BORDER, pady=1, padx=1, width=462)
@@ -5306,8 +5311,33 @@ class VPXStandaloneMergingUtility:
             if f.startswith('{') and f.endswith('}'):
                 f = f[1:-1]
             files.append(f)
-        self.vpx_files = [f for f in files if f.lower().endswith(('.vpx', '.vbs'))]
+        self._apply_files(files, replace=True)
+
+    def _apply_files(self, paths, replace=False):
+        """Filter to .vpx/.vbs, update self.vpx_files, then rescan."""
+        new_files = [p for p in paths if p.lower().endswith(('.vpx', '.vbs'))]
+        if replace:
+            self.vpx_files = new_files
+        else:
+            existing = {os.path.normcase(p) for p in self.vpx_files}
+            for p in new_files:
+                if os.path.normcase(p) not in existing:
+                    self.vpx_files.append(p)
+                    existing.add(os.path.normcase(p))
+        self.drop_hint.place_forget()
         self.audit_logic("scan")
+
+    def add_files_dialog(self):
+        """Open a file picker as an alternative to drag & drop (Wayland-safe)."""
+        paths = filedialog.askopenfilenames(
+            title="Add VPX Tables / VBS Scripts",
+            filetypes=[("VPX & VBS files", "*.vpx *.vbs"),
+                       ("VPX tables", "*.vpx"),
+                       ("VBS scripts", "*.vbs"),
+                       ("All files", "*.*")])
+        if not paths:
+            return
+        self._apply_files(list(paths), replace=False)
 
     def start_thread(self, mode):
         self.btn_full.config(state="disabled")
