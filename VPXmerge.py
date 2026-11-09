@@ -4745,7 +4745,13 @@ class VPXStandaloneMergingUtility:
                 serum_items = []  # list of (src_path, dst_name)
                 serum_seen = set()
 
-                # Candidate 1: altcolor/<name>.Crz where name matches rom/table/pGameName.
+                # Serum colorization formats, mapped to the extension used for the
+                # exported copy. .cROMc is the current (Serum v2 "concentrate")
+                # format and the only one recent libserum loads; .cRZ is the older
+                # compressed format. libserum matches names case-insensitively.
+                serum_exts = {".crz": ".Crz", ".cromc": ".cROMc"}
+
+                # Candidate 1: altcolor/<name>.Crz|.cROMc where name matches rom/table/pGameName.
                 if altcolor_root and os.path.isdir(altcolor_root):
                     try:
                         for entry in sorted(os.listdir(altcolor_root)):
@@ -4753,7 +4759,8 @@ class VPXStandaloneMergingUtility:
                             if not os.path.isfile(entry_path):
                                 continue
                             stem, ext = os.path.splitext(entry)
-                            if ext.casefold() != ".crz":
+                            dst_ext = serum_exts.get(ext.casefold())
+                            if not dst_ext:
                                 continue
                             if stem.lower() not in {k.lower() for k in color_keys}:
                                 continue
@@ -4761,30 +4768,31 @@ class VPXStandaloneMergingUtility:
                             if key in serum_seen:
                                 continue
                             serum_seen.add(key)
-                            serum_items.append((entry_path, f"{stem}.Crz"))
+                            serum_items.append((entry_path, f"{stem}{dst_ext}"))
                     except Exception:
                         pass
 
-                # Candidate 2: altcolor/<name>/**/<file>.Crz where name matches rom/table/pGameName.
+                # Candidate 2: altcolor/<name>/**/<file>.Crz|.cROMc where name matches rom/table/pGameName.
                 for _key_name, candidate_dir in altcolor_candidates:
                     try:
                         for walk_root, _walk_dirs, walk_files in os.walk(candidate_dir):
                             for entry in sorted(walk_files):
                                 entry_path = os.path.join(walk_root, entry)
                                 stem, ext = os.path.splitext(entry)
-                                if ext.casefold() != ".crz":
+                                dst_ext = serum_exts.get(ext.casefold())
+                                if not dst_ext:
                                     continue
                                 key = os.path.normcase(os.path.abspath(entry_path))
                                 if key in serum_seen:
                                     continue
                                 serum_seen.add(key)
-                                serum_items.append((entry_path, f"{stem}.Crz"))
+                                serum_items.append((entry_path, f"{stem}{dst_ext}"))
                     except Exception:
                         pass
 
                 serum_found = len(serum_items) > 0
 
-                # If a .Crz is present, report/copy as Serum and do not mark AltColor as detected.
+                # If a Serum file (.Crz/.cROMc) is present, report/copy as Serum and do not mark AltColor as detected.
                 altcolor_effective = altcolor_has_vni and not serum_found
 
                 if altcolor_effective:
