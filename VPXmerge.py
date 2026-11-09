@@ -4821,9 +4821,12 @@ class VPXStandaloneMergingUtility:
                         else:
                             self.log_audit(f"6-SERUM: Serum Colorization Detected ({len(serum_items)} files)", "found")
                     elif mode == "full":
-                        serum_dst_dir = os.path.join(table_dest, "serum")
-                        os.makedirs(serum_dst_dir, exist_ok=True)
+                        # VPX Standalone looks for serum/<rom>/<rom>.cROMc (or .cRZ):
+                        # the file must sit in a subfolder named after itself.
+                        serum_root = os.path.join(table_dest, "serum")
                         for serum_src_path, serum_dst_name in serum_items:
+                            serum_dst_dir = os.path.join(serum_root, os.path.splitext(serum_dst_name)[0])
+                            os.makedirs(serum_dst_dir, exist_ok=True)
                             shutil.copy2(serum_src_path, os.path.join(serum_dst_dir, serum_dst_name))
                         self.file_stats['serum'] += len(serum_items)
                 elif mode == "scan":
